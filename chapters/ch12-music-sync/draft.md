@@ -286,6 +286,8 @@ The workflow:
 
 1. **n1k-o composed the gabber track**, then exported it from Vortex Tracker into Excel. In the spreadsheet, he built a colour-coded visual map of the entire track: every row is one frame (= one pattern row), with columns for each musical layer --- kick drums in blue, snare in red, melody in green, acid in purple, and so on. Extra columns held frame numbers and any sync data the coders needed. He also highlighted subtle effects that non-musicians might not hear. The result was a frame-accurate, human-readable map of the entire composition. The reason for this effort was practical: the coders heard gabber as a wall of sound and could not identify individual beats or transitions by ear. The spreadsheet made the musical structure visible. This workflow proved so effective that the team adopted it for all subsequent demos.
 
+![n1k-o's demoplan for Unspoken (4D+TBK) -- colour-coded sync map exported from Vortex Tracker into Excel. Each row is one frame, coloured columns mark musical layers: drums (navy), hi-hats (gold), melody (green), bass (purple). This is the same workflow pioneered for GABBA and used for all subsequent 4D+TBK demos.](illustrations/output/ch12_demoplan.png)
+
 2. **diver4d recorded each visual effect** running at 50 fps in an emulator and exported the recordings as video clips.
 
 3. **In Luma Fusion**, he arranged the video clips on a 50 fps timeline alongside the audio track. He could scrub through the demo frame by frame, seeing exactly how each visual aligned with each musical event. Moving a transition was as simple as dragging a clip on the timeline.
