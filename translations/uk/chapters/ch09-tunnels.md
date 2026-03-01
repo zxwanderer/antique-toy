@@ -57,7 +57,7 @@ graph TD
     style I fill:#bfb,stroke:#333
 ```
 
-> **Key insight:** There is no distance-from-centre calculation, no angle table, no polar coordinate transform. The tunnel shape emerges from sine wave interference — concentric rings appear naturally from overlapping frequencies. Only one quarter (16×12) is computed; the rest is mirrored.
+> **Ключова ідея:** Немає обчислення відстані від центру, немає таблиці кутів, немає перетворення в полярні координати. Форма тунелю виникає з інтерференції синусоїдальних хвиль -- концентричні кільця з'являються природно від накладення частот. Обчислюється лише одна чверть (16x12); решта дзеркально відображається.
 
 Це дешевше за справжній геометричний тунель (який потребував би попіксельних пошуків відстані та кута) і дає візуально багатий результат. Компроміс — менша геометрична точність, але при роздільності 32x24 геометрична точність і так не стояла на порядку денному.
 
@@ -71,7 +71,7 @@ graph TD
 
 Тунель при погляді ззаду симетричний відносно і горизонтальної, і вертикальної осей. Якщо обчислити одну чверть екрану — верхній лівий блок 16x12 — можна скопіювати його в інші три чверті дзеркальним відображенням. Верхній лівий у верхній правий — горизонтальне відображення. Верхній лівий у нижній лівий — вертикальне відображення. Верхній лівий у нижній правий — обидва.
 
-The copy routine is tight. In Introspec's implementation, HL points to the source byte in the top-left quarter, and the three destination addresses (top-right, bottom-left, bottom-right) are maintained in a combination of absolute addresses and register pair BC:
+Процедура копіювання щільна. У реалізації Introspec'а HL вказує на вихідний байт у верхній лівій чверті, а три адреси призначення (верхній правий, нижній лівий, нижній правий) підтримуються комбінацією абсолютних адрес та регістрової пари BC:
 
 ```z80 id:ch09_four_fold_symmetry_divide_and
     ld a,(hl)      ; read source byte from top-left quarter
@@ -108,7 +108,7 @@ The copy routine is tight. In Introspec's implementation, HL points to the sourc
     ; ... repeated for all 768 cells (or one quarter, with symmetry)
 ```
 
-The key optimisation: since `ldi` auto-increments DE, you never need to calculate or load the destination address. The output is always written sequentially into attribute RAM. Only the source addresses vary, and they are embedded directly in the instruction stream as immediate operands. This makes the zoomer a long sequence of `ld hl,nn : ldi` pairs -- conceptually simple, but each pair is just 5 bytes (3 for `ld hl,nn` + 2 for `ldi`) and 26 T-states. For a full quarter-screen of 192 cells, that is roughly 5,000 T-states of pure copying, plus the four-way symmetry copy on top.
+Ключова оптимізація: оскільки `ldi` автоінкрементує DE, тобі ніколи не потрібно обчислювати або завантажувати адресу призначення. Вивід завжди записується послідовно в RAM атрибутів. Лише адреси джерел варіюються, і вони вбудовані безпосередньо в потік інструкцій як безпосередні операнди. Це робить зумер довгою послідовністю пар `ld hl,nn : ldi` -- концептуально простою, але кожна пара -- лише 5 байтів (3 для `ld hl,nn` + 2 для `ldi`) та 26 тактів (T-state). Для повної чвертини екрану з 192 комірок це приблизно 5 000 тактів (T-state) чистого копіювання, плюс чотиристороннє симетричне копіювання зверху.
 
 Ускладнення в тому, що адреси джерел змінюються кожен кадр по мірі прогресу зуму. Оновлення 192 двобайтних адрес, вбудованих у код, коштувало б майже стільки ж, скільки саме копіювання. Ось де в картину входить генерація коду.
 
@@ -156,7 +156,7 @@ Eager розроблявся між червнем та серпнем 2015 ро
 
 Музику написав n1k-o (зі Skrju), чий трек дав демо його ритмічну структуру. Гібридна техніка барабанів — цифровий зразок для атакуючого транзієнту, обвідна AY для загасання — була інновацією n1k-o, і саме вона визначила все архітектурне рішення побудувати рушій асинхронної генерації кадрів. Без барабанів Eager могло б бути простішим демо. З ними воно стало тим, що Introspec назвав "найважчою річчю, яку я зробив у демо."
 
-The development was compressed into roughly ten weeks. The party version, submitted to 3BM Open Air 2015, still had bugs -- the file_id.diz carried a note thanking diver of 4D+TBK "for the cool tip" and apologising for the instability. The final version fixed the timing issues across Spectrum models (128K, +2, +2A/B, +3, Pentagon -- all at 3.5MHz only, no turbo). That cross-pollination -- a scener from one group passing a technical insight to a coder from another -- is how the ZX demoscene evolves.
+Розробка була стиснута приблизно в десять тижнів. Паті-версія, подана на 3BM Open Air 2015, все ще мала баги -- file_id.diz містив подяку diver з 4D+TBK "за класну підказку" та вибачення за нестабільність. Фінальна версія виправила проблеми таймінгу на різних моделях Spectrum (128K, +2, +2A/B, +3, Pentagon -- всі лише на 3,5 МГц, без турбо). Це взаємозапліднення -- сценер з однієї групи передає технічну ідею кодеру з іншої -- саме так еволюціонує демосцена ZX.
 
 ---
 

@@ -111,7 +111,7 @@ START
 
 ## Мінімальний RLE-розпаковувач
 
-The simplest useful compressor. Only 12 bytes of code. Suitable for 256-byte intros or data with long runs of identical bytes. See Chapter 14 for a full discussion.
+Найпростіший корисний пакувальник. Лише 12 байтів коду. Підходить для 256-байтних інтро або даних з довгими серіями однакових байтів. Дивись Розділ 14 для повного обговорення.
 
 ```z80
 ; Minimal RLE decompressor
@@ -155,7 +155,7 @@ def rle_encode(data):
 
 Цей наївний RLE розширює дані без серій (найгірший випадок: 2 байти на 1 байт вхідних даних). Для змішаних даних використовуй RLE з ескейп-байтом: спеціальний байт сигналізує серію, а всі інші байти -- літерали. Або просто використовуй ZX0.
 
-**Transposition trick.** RLE benefits dramatically from column-major data layout. If you have a 32×24 attribute block where each row varies but columns are often constant, transposing the data (storing all column 0 values, then column 1, etc.) creates long runs that RLE compresses well. The trade-off: the Z80 must un-transpose the data after decompression, which costs an extra pass (~13 T-states per byte for a simple nested-loop copy). Count the total cost (decompressor code + un-transpose code + compressed data) against ZX0 (decompressor + compressed data, no transform needed) to see which wins for your specific data.
+**Трюк з транспонуванням.** RLE значно виграє від розкладки даних по стовпцях. Якщо у тебе є блок атрибутів 32x24, де кожен рядок відрізняється, але стовпці часто постійні, транспонування даних (зберігання всіх значень стовпця 0, потім стовпця 1 і т.д.) створює довгі серії, які RLE добре стискає. Компроміс: Z80 повинен зворотно транспонувати дані після розпаковки, що коштує додаткового проходу (~13 тактів (T-state) на байт для простого копіювання вкладеним циклом). Порахуй загальну вартість (код розпаковувача + код зворотного транспонування + стиснуті дані) проти ZX0 (розпаковувач + стиснуті дані, без перетворень), щоб побачити, що виграє для твоїх конкретних даних.
 
 ---
 

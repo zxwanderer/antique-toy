@@ -606,7 +606,7 @@ ring_buffer_load:
 | Обмеження розміру карти | Обмежене RAM, без апаратної підтримки | Розмір тайлової карти обмежений пам'яттю VDP |
 | Колір на тайл | 2 кольори на комірку 8×8 (атрибут) | Повний колір на піксель |
 
-The contrast is stark. What the Spectrum programmer spends most of their frame budget on -- moving pixel data across a scrambled memory layout -- the Agon handles with a register write. The hardware design choices propagate through every level of the software. The Spectrum's constraints forced the development of the combined scroll method, tile engines, and shadow-screen tricks. The Agon's constraints are elsewhere (serial VDP latency, command overhead for complex scenes).
+Контраст разючий. Те, на що програміст Spectrum витрачає більшу частину бюджету кадру --- переміщення піксельних даних по перемішаній розкладці пам'яті --- Agon вирішує записом у регістр. Вибір апаратного дизайну поширюється на кожен рівень програмного забезпечення. Обмеження Spectrum змусили розробити комбінований метод скролінгу, тайлові рушії та трюки з тіньовим екраном. Обмеження Agon лежать в іншому місці (затримка послідовного зв'язку з VDP, накладні витрати команд для складних сцен).
 
 ---
 

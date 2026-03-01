@@ -115,9 +115,8 @@ pixel_addr:
     ld   h, a
 
     ld   a, b              ; A = y
-    rra
-    rra
-    rra
+    rla                    ; \ shift bits 5-3 of y
+    rla                    ; / left to bits 7-5
     and  $E0               ; char row bits → L high
     ld   l, a
 

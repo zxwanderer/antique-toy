@@ -33,15 +33,15 @@ Step down:    dx' = sin(theta) * scale,  dy' = cos(theta) * scale
 
 Це фундаментальна оптимізація за кожним ротозумером на будь-якій платформі. На Amiga, на PC, на Spectrum.
 
-### Fixed-Point Stepping on the Z80
+### Крокування з фіксованою точкою на Z80
 
-On a 16-bit or 32-bit platform, dx and dy would be fixed-point values: the integer part selects the texel, and the fractional part accumulates sub-pixel precision. On the Z80, we lack the registers and the bandwidth for true fixed-point inner loops. The classic Spectrum solution is to collapse the step to integer increments -- always exactly +1, -1, or 0 per axis -- and control the *ratio* of steps between axes to approximate the angle.
+На 16-бітній або 32-бітній платформі dx та dy були б значеннями з фіксованою точкою: ціла частина обирає тексель, а дробова частина накопичує субпіксельну точність. На Z80 нам бракує регістрів і пропускної здатності для справжніх внутрішніх циклів з фіксованою точкою. Класичне рішення для Spectrum -- схлопнути крок до цілих інкрементів -- завжди рівно +1, -1 або 0 на вісь -- і контролювати *співвідношення* кроків між осями для наближення кута.
 
-Consider a rotation of 30 degrees. The exact step vector would be (cos 30, -sin 30) = (0.866, -0.5). On a machine with fixed-point arithmetic, you would add 0.866 to the column coordinate and subtract 0.5 from the row coordinate per pixel. On the Z80, the inner loop instead alternates between two integer steps: some pixels step (+1 column, 0 rows) and others step (+1 column, -1 row). If you distribute these in a roughly 2:1 ratio -- two column-only steps for every diagonal step -- the average direction approximates the 0.866:0.5 ratio of a 30-degree walk. This is Bresenham's line algorithm applied to texture traversal.
+Розглянемо поворот на 30 градусів. Точний вектор кроку буде (cos 30, -sin 30) = (0.866, -0.5). На машині з арифметикою фіксованої точки ти б додавав 0.866 до координати стовпця і віднімав 0.5 від координати рядка на піксель. На Z80 внутрішній цикл натомість чергує два цілих кроки: деякі пікселі крокують (+1 стовпець, 0 рядків), а інші крокують (+1 стовпець, -1 рядок). Якщо розподілити їх приблизно у співвідношенні 2:1 -- два чисто стовпцевих кроки на кожен діагональний -- середній напрямок наближає співвідношення 0.866:0.5 ходу під 30 градусів. Це алгоритм лінії Брезенхема, застосований до обходу текстури.
 
-The zoom factor determines how many texels you skip per screen pixel. At scale 1.0, every texel maps to one screen pixel. At scale 2.0, you skip every other texel, effectively zooming in. On the Spectrum, this is controlled by doubling the walk instructions: instead of one `INC L` per pixel, you execute two, stepping by 2 texels and producing a 2x zoom. Intermediate zoom levels again use Bresenham-like distribution: some pixels step by 1, others by 2, with the ratio controlled by an error accumulator.
+Коефіцієнт зуму визначає, скільки текселів ти пропускаєш на екранний піксель. При масштабі 1.0 кожен тексель відповідає одному екранному пікселю. При масштабі 2.0 ти пропускаєш кожен другий тексель, фактично збільшуючи. На Spectrum це контролюється подвоєнням інструкцій ходу: замість одного `INC L` на піксель ти виконуєш два, крокуючи на 2 текселі і створюючи 2x зум. Проміжні рівні зуму знову використовують розподіл у стилі Брезенхема: деякі пікселі крокують на 1, інші на 2, з співвідношенням, контрольованим акумулятором помилки.
 
-The per-frame cost of computing these parameters is negligible: four lookups into a sine table, a few multiplications (or table lookups, see Chapter 4), and a Bresenham setup pass. All the heavy work is in the inner loop, which has been reduced to nothing but register increments and memory reads.
+Покадрова вартість обчислення цих параметрів нехтовна: чотири пошуки в таблиці синусів, кілька множень (або табличних пошуків, див. Розділ 4) і прохід підготовки Брезенхема. Уся важка робота -- у внутрішньому циклі, який зведено до самих лише інкрементів регістрів і зчитувань з пам'яті.
 
 ---
 
@@ -51,17 +51,17 @@ The per-frame cost of computing these parameters is negligible: four lookups int
 
 Illusion використовує чанкі-пікселі 2x2: ефективна роздільність 128x96, зменшення роботи в 4 рази. Ефект виглядає блочним зблизька, але на тій швидкості, з якою текстура пролітає по екрану, рух приховує грубість. Око пробачає низьку роздільність, коли все рухається.
 
-### Why 2x2 Is the Sweet Spot
+### Чому 2x2 -- оптимальний вибір
 
-The choice of chunk size involves a three-way tradeoff: visual quality, rendering speed, and memory. At 2x2, you get 128x96 effective pixels -- enough to read text and recognise patterns in the texture. At 4x4, the 64x48 grid is noticeably coarser; fine details in the texture become unreadable, but the effect still "reads" as a coherent rotating surface. At 8x8, you are down to 32x24 blocks, which is the attribute grid resolution -- any texture detail is lost, and the effect looks like coloured rectangles. The last case can be useful for colour-only effects (attribute tunnels, Chapter 9), but for a pixel-rendered rotozoomer, 2x2 or 4x4 is the practical range.
+Вибір розміру чанків включає тристоронній компроміс: візуальна якість, швидкість рендерингу та пам'ять. При 2x2 ти отримуєш 128x96 ефективних пікселів -- достатньо, щоб читати текст і розпізнавати патерни в текстурі. При 4x4 сітка 64x48 помітно грубіша; дрібні деталі текстури стають нечитабельними, але ефект все ще "зчитується" як зв'язна обертова поверхня. При 8x8 ти спускаєшся до блоків 32x24, що є роздільністю сітки атрибутів -- будь-яка деталізація текстури втрачається, і ефект виглядає як кольорові прямокутники. Останній випадок може бути корисним для чисто кольорових ефектів (тунелі на атрибутах, Розділ 9), але для піксельного ротозумера 2x2 або 4x4 -- практичний діапазон.
 
-The memory cost matters too. Each chunky pixel stores one byte, so a 2x2 rotozoomer at 128x96 needs 12,288 texels per frame. With a 256-byte texture row (the natural width for 8-bit wrapping), the texture itself occupies 256 bytes per row times however many rows you need. A 4x4 version only processes 3,072 texels, which means the inner loop runs one-quarter as many iterations -- but the visual cost is significant.
+Вартість пам'яті теж має значення. Кожен чанкі-піксель зберігає один байт, тому ротозумер 2x2 при 128x96 потребує 12 288 текселів на кадр. При 256-байтному рядку текстури (природна ширина для 8-бітного обгортання) сама текстура займає 256 байт на рядок, помножені на потрібну кількість рядків. Версія 4x4 обробляє лише 3 072 текселі, що означає, що внутрішній цикл виконує вчетверо менше ітерацій -- але візуальна ціна значна.
 
-In practice, Spectrum demos land on 2x2 for featured rotozoomer effects and reserve 4x4 for situations where the rotozoomer shares the screen with other effects (bumpmapping overlays, split-screen compositions).
+На практиці Spectrum-демо зупиняються на 2x2 для головних ротозумерних ефектів і резервують 4x4 для ситуацій, коли ротозумер ділить екран з іншими ефектами (бамп-мапінг накладки, екранні композиції з розділенням).
 
-### The $03 Encoding Trick
+### Трюк з кодуванням $03
 
-The encoding is designed for the inner loop. Each chunky pixel is stored as `$03` (on) or `$00` (off). This value is not arbitrary -- it encodes exactly the two low bits set: `%00000011`. Watch what happens as four pixels accumulate in the A register:
+Кодування розроблене для внутрішнього циклу. Кожен чанкі-піксель зберігається як `$03` (увімкнено) або `$00` (вимкнено). Це значення не довільне -- воно кодує рівно два встановлених нижніх біти: `%00000011`. Подивись, що відбувається, коли чотири пікселі накопичуються в регістрі A:
 
 ```text
 After pixel 1:  A = %00000011                  ($03)
@@ -73,9 +73,9 @@ After 2x shift: A = %11111100                  ($FC)
 After pixel 4:  A = %11111100 + %00000011      ($FF)
 ```
 
-If all four pixels are "on", the result is `$FF` -- all bits set. If all four are "off" (`$00`), the shifts and additions produce `$00`. Mixed patterns produce the correct 2-bit-per-pixel stripe: for example, on-off-on-off gives `%11001100` = `$CC`. Each pair of bits in the output byte corresponds to one chunky pixel. Since each chunky pixel is 2 screen pixels wide (2x2), the 8-bit output byte covers exactly 8 screen pixels: four chunky columns times two pixels each.
+Якщо всі чотири пікселі "увімкнені", результат -- `$FF` -- всі біти встановлені. Якщо всі чотири "вимкнені" (`$00`), зсуви та додавання дають `$00`. Змішані патерни породжують правильну 2-бітну смугу на піксель: наприклад, увімк-вимк-увімк-вимк дає `%11001100` = `$CC`. Кожна пара бітів у вихідному байті відповідає одному чанкі-пікселю. Оскільки кожен чанкі-піксель має ширину 2 екранних пікселі (2x2), 8-бітний вихідний байт покриває рівно 8 екранних пікселів: чотири чанкі-стовпці по два пікселі кожний.
 
-The critical property: because we only ever add `$03` or `$00`, there is no carry between pixel fields. The two-bit groups never overflow into each other. This is what makes the encoding branchless -- no masking needed, no OR operations, just `ADD A,A` and `ADD A,(HL)`.
+Критична властивість: оскільки ми додаємо лише `$03` або `$00`, перенесення між полями пікселів не виникає. Двобітні групи ніколи не переповнюють одна одну. Саме це робить кодування безрозгалужувальним -- маскування не потрібне, операції OR не потрібні, лише `ADD A,A` та `ADD A,(HL)`.
 
 ---
 
@@ -112,13 +112,13 @@ Introspec виміряв приблизно 95 тактів на 4 чанки.
 
 Критичне спостереження: напрямок ходу жорстко зашитий у потоці інструкцій. Інший кут повороту потребує інших інструкцій. Вісім основних напрямків можливі з використанням комбінацій `inc l`, `dec l`, `inc h`, `dec h` та `nop`. Це означає, що код рендерингу змінюється кожен кадр.
 
-### Self-Modifying Code at the Byte Level
+### Самомодифікований код на рівні байтів
 
-"Per-frame code generation" sounds exotic, but the mechanism is mundane. Each walk instruction is a single byte in memory. `INC L` is opcode `$2C`. `DEC L` is `$2D`. `INC H` is `$24`. `DEC H` is `$25`. `NOP` is `$00`. To change the walk direction from "right and up" (`INC L` + `DEC H`) to "pure right" (`INC L` + `NOP`), you write `$00` to the byte where `$25` currently sits. That is the entire code generation step: `LD A,$00 : LD (walk_target),A`. A few stores into the instruction stream, and the inner loop now walks in a different direction.
+"Покадрова генерація коду" звучить екзотично, але механізм буденний. Кожна інструкція ходу -- це один байт у пам'яті. `INC L` -- це опкод `$2C`. `DEC L` -- `$2D`. `INC H` -- `$24`. `DEC H` -- `$25`. `NOP` -- `$00`. Щоб змінити напрямок ходу з "вправо і вгору" (`INC L` + `DEC H`) на "чисто вправо" (`INC L` + `NOP`), ти записуєш `$00` у байт, де зараз знаходиться `$25`. Це весь крок генерації коду: `LD A,$00 : LD (walk_target),A`. Кілька записів у потік інструкцій, і внутрішній цикл тепер ходить в іншому напрямку.
 
-The targets are known at assembly time. Each SMC site is labelled (e.g., `.smc_walk_h_0:`) and the patching code uses those labels as literal addresses. There is no dynamic memory allocation, no instruction parsing, no runtime disassembly. You are writing known opcodes to known addresses. The Z80 has no instruction cache to invalidate, no pipeline to flush. The write takes effect immediately on the next fetch from that address.
+Цілі відомі на етапі асемблювання. Кожне місце SMC промарковане міткою (напр., `.smc_walk_h_0:`) і код патчінгу використовує ці мітки як літеральні адреси. Немає динамічного виділення пам'яті, немає аналізу інструкцій, немає дизасемблювання під час виконання. Ти записуєш відомі опкоди за відомими адресами. Z80 не має кешу інструкцій для інвалідації, не має конвеєра для скидання. Запис набуває чинності негайно при наступній вибірці з цієї адреси.
 
-In a fully unrolled inner loop (which Illusion uses for its 16-byte rows), there would be 64 walk-instruction sites to patch: 4 walk pairs per output byte times 16 bytes per row. Patching 64 bytes costs about 64 x 13 = 832 T-states (each `LD (nn),A` is 13 T-states), which is negligible compared to the 100,000+ T-states the rendering pass takes. The code generator is cheap. The generated code is what matters.
+У повністю розгорнутому внутрішньому циклі (який Illusion використовує для своїх 16-байтних рядків), буде 64 місця інструкцій ходу для патчінгу: 4 пари ходу на вихідний байт помножити на 16 байт на рядок. Патчінг 64 байт коштує приблизно 64 x 13 = 832 такти (кожен `LD (nn),A` -- це 13 тактів), що нехтовно порівняно з 100 000+ тактів, які займає прохід рендерингу. Генератор коду дешевий. Згенерований код -- ось що має значення.
 
 ---
 
@@ -139,14 +139,14 @@ In a fully unrolled inner loop (which Illusion uses for its 16-byte rows), there
 
 Для проміжних кутів генератор розподіляє кроки нерівномірно, використовуючи накопичення помилки в стилі Брезенхема. Поворот на 30 градусів чергує `inc l : nop` та `inc l : dec h` приблизно у співвідношенні 2:1, наближаючи тангенс 30 градусів (1,73:1). Результуючий код — розгорнутий цикл, де кожна ітерація має свою специфічну пару ходу, налаштовану на поточний кут.
 
-The rendering cost for 128x96 at 2x2 chunky. The 128x96 area is 96 pixel rows, but each 2x2 texel covers two pixel rows, giving 48 texel rows. Each texel row produces 16 output bytes (128 pixels / 8 bits per byte, with 4 chunky pixels packed per byte):
+Вартість рендерингу для 128x96 при чанкі 2x2. Область 128x96 -- це 96 піксельних рядків, але кожен 2x2 тексель покриває два піксельних рядки, даючи 48 тексельних рядків. Кожен тексельний рядок породжує 16 вихідних байт (128 пікселів / 8 біт на байт, по 4 чанкі-пікселі, запаковані на байт):
 
 ```text
 16 output bytes/row x 95 T-states = 1,520 T-states/row
 1,520 x 48 texel rows = 72,960 T-states total
 ```
 
-Roughly 1 frame on a Pentagon (71,680 T-states per frame). But this is the bare inner loop only. A complete accounting adds:
+Приблизно 1 кадр на Pentagon (71 680 тактів на кадр). Але це лише голий внутрішній цикл. Повний облік додає:
 
 ```text
 Code generation:        ~  1,000 T  (patching walk instructions)
@@ -159,9 +159,9 @@ Inner loop:               72,960 T
 Total per frame:        ~ 95,460 T  (= 1.33 Pentagon frames)
 ```
 
-On a standard 48K/128K Spectrum at 69,888 T-states per frame, the rendering takes roughly 1.4 frames. Introspec's estimate of 4-6 frames per screen accounts for the more complex code path in Illusion (which handles the full 256x192 screen, not just a 128x96 strip) and the cost of the music engine running in the interrupt. On a Pentagon with its slightly longer frame (71,680 T-states) and no contention, the inner loop runs about 3% faster.
+На стандартному 48K/128K Spectrum при 69 888 тактах на кадр рендеринг займає приблизно 1,4 кадри. Оцінка Introspec'а у 4-6 кадрів на екран враховує складніший шлях коду в Illusion (який обробляє повний екран 256x192, а не лише смугу 128x96) і вартість музичного рушія, що працює в перериванні. На Pentagon з його трохи довшим кадром (71 680 тактів) і без спірної пам'яті, внутрішній цикл працює приблизно на 3% швидше.
 
-Memory contention on the 48K/128K Spectrum adds another hidden cost. During the top 192 scanlines, the ULA steals cycles from the CPU when accessing the lower 16KB of RAM ($4000-$7FFF). The inner loop reads from the texture (which should be above $8000, out of contended memory) and writes to a buffer (also above $8000), so it avoids contention entirely. The buffer-to-screen transfer, however, writes directly to video RAM and will be slowed by contention if it overlaps with the display period. This is why demos synchronise the screen transfer to the border period or to the bottom of the display.
+Спірна пам'ять на 48K/128K Spectrum додає ще одну приховану вартість. Під час верхніх 192 рядків розгортки ULA краде такти у процесора при зверненні до нижніх 16 КБ ОЗП ($4000-$7FFF). Внутрішній цикл зчитує з текстури (яка повинна бути вище $8000, поза спірною пам'яттю) і записує в буфер (теж вище $8000), тому він уникає спірної пам'яті повністю. Перенос з буфера на екран, однак, записує безпосередньо у відеопам'ять і буде уповільнений спірною пам'яттю, якщо він перекривається з періодом відображення. Ось чому демо синхронізують перенос на екран з періодом бордюру або з нижньою частиною екрану.
 
 ---
 
@@ -215,13 +215,13 @@ proc_A5:
 
 Самомодифікований підхід виграє, але перевага над LDD невелика. У демо на 128K 3 КБ легко доступні. У продукції на 48K підхід з LDD може бути кращим інженерним рішенням.
 
-### Historical Roots: Born Dead #05 and the Scene Lineage
+### Історичне коріння: Born Dead #05 та лінія наступності сцени
 
-sq notes these techniques build on work published in Born Dead #05, a Russian demoscene newspaper from approximately 2001. Born Dead was one of several Russian-language disk magazines that served as technical journals for the ZX Spectrum demoscene. Unlike Western PC demoscene publications that could assume 486-class hardware, the Spectrum magazines operated under the constraints of a community that was still actively developing new techniques for a machine from 1982. The foundational article described basic chunky rendering -- the idea that you could treat the Spectrum's bit-mapped display as a lower-resolution chunky-pixel buffer and gain speed at the expense of resolution.
+sq зазначає, що ці техніки базуються на роботі, опублікованій у Born Dead #05, російській демосценній газеті приблизно 2001 року. Born Dead був одним з кількох російськомовних дискових журналів, що слугували технічними виданнями для демосцени ZX Spectrum. На відміну від західних PC-демосценних публікацій, які могли покладатися на обладнання класу 486, журнали для Spectrum працювали в умовах спільноти, що все ще активно розробляла нові техніки для машини 1982 року. Основна стаття описувала базовий чанкі-рендеринг -- ідею, що можна трактувати бітовий дисплей Spectrum як буфер чанкі-пікселів з нижчою роздільністю і виграти швидкість за рахунок роздільності.
 
-sq's contribution, twenty-one years later, was the systematic optimisation and the pre-generated procedure variant. But between Born Dead #05 and sq's 2022 article, the chunky rotozoomer appeared in numerous Spectrum demos. X-Trade's Illusion (ENLiGHT'96) was among the earliest full implementations. Other notable examples include Exploder^XTM's GOA4K and Refresh, 4D's productions, and later work from the Russian and Polish scenes. The technique spread partly through disassembly -- Introspec's 2017 analysis of Illusion is itself an example of the scene's tradition of learning by reverse engineering -- and partly through the informal knowledge network of disk magazines, BBS postings, and direct communication between coders.
+Внесок sq, двадцять один рік потому, був у систематичній оптимізації та варіанті з попередньо згенерованими процедурами. Але між Born Dead #05 та статтею sq 2022 року чанкі-ротозумер з'явився у численних Spectrum-демо. Illusion від X-Trade (ENLiGHT'96) був серед найперших повних реалізацій. Інші помітні приклади включають GOA4K та Refresh від Exploder^XTM, продукції 4D та пізніші роботи з російської та польської сцен. Техніка поширювалася частково через дизасемблювання -- аналіз Introspec'а 2017 року Illusion сам є прикладом традиції сцени навчатися через зворотний інжиніринг -- і частково через неформальну мережу знань дискових журналів, BBS-постів та прямого спілкування між кодерами.
 
-This is how scene knowledge evolves: a technique surfaces in an obscure disk magazine, circulates within the community, and twenty-one years later someone revisits it with fresh measurements and new tricks. The chain from Born Dead to sq to this chapter is unbroken.
+Ось як еволюціонують знання сцени: техніка з'являється в маловідомому дисковому журналі, циркулює в спільноті, і двадцять один рік потому хтось повертається до неї зі свіжими вимірами та новими трюками. Ланцюжок від Born Dead до sq до цього розділу неперервний.
 
 ---
 
@@ -269,38 +269,38 @@ texture:
 
 Інструкції `inc l` — це цілі генератора коду. Перед кожним кадром вони патчаться відповідною комбінацією `inc l`/`dec l`/`inc h`/`dec h`/`nop` на основі поточного кута. Для некардинальних кутів акумулятор помилки Брезенхема розподіляє кроки по мінорній осі по всьому рядку, тому кожна інструкція ходу в розгорнутому циклі може відрізнятися від своїх сусідів.
 
-![Rotozoomer output — the texture rotates and scales in real-time, rendered with 2x2 chunky pixels](../../build/screenshots/ch07_rotozoomer.png)
+![Вивід ротозумера -- текстура обертається та масштабується в реальному часі, відрендерена чанкі-пікселями 2x2](../../build/screenshots/ch07_rotozoomer.png)
 
 **Основний цикл.** `HALT` для vsync, обчисли крокові вектори, згенеруй код ходу, відрендери в буфер, стекове копіювання буфера на екран, інкрементуй лічильник кадрів, повтори.
 
 ---
 
-## Texture Design and Boundary Handling
+## Проектування текстури та обробка меж
 
-The texture is the most constrained data structure in the rotozoomer. Every design decision in the inner loop -- the page alignment, the wrapping behaviour, the power-of-two sizing -- traces back to how the texture is laid out in memory.
+Текстура -- найбільш обмежена структура даних у ротозумері. Кожне проектне рішення у внутрішньому циклі -- вирівнювання за сторінкою, поведінка обгортання, розміри степенями двійки -- простежується до того, як текстура розташована в пам'яті.
 
-### Why Page-Aligned, Why 256 Columns
+### Чому вирівнювання за сторінкою, чому 256 стовпців
 
-The texture is page-aligned so that H selects the row and L selects the column. This is not merely convenient; it makes the inner loop possible. `INC L` and `DEC L` wrap at the 256-byte page boundary automatically -- when L overflows from `$FF` to `$00`, H is unchanged. The texture wraps horizontally for free, with zero branch overhead. If the texture were not page-aligned, L increments would carry into H, corrupting the row address. You would need explicit masking (`AND $3F` after every step), which would add 4-8 T-states per pixel and destroy the tight inner loop.
+Текстура вирівняна за сторінкою, щоб H обирав рядок, а L обирав стовпець. Це не просто зручність -- це робить внутрішній цикл можливим. `INC L` і `DEC L` автоматично обгортаються на межі 256-байтної сторінки -- коли L переповнюється з `$FF` на `$00`, H не змінюється. Текстура обгортається горизонтально безкоштовно, з нульовими накладними витратами на розгалуження. Якби текстура не була вирівняна за сторінкою, інкременти L переносилися б у H, псуючи адресу рядка. Потрібне було б явне маскування (`AND $3F` після кожного кроку), що додало б 4-8 тактів на піксель і зруйнувало б тісний внутрішній цикл.
 
-The vertical axis (H) also wraps, but over the full range of rows allocated to the texture. If you allocate 64 rows (pages), H ranges from the texture base page to base+63. `INC H` and `DEC H` will happily walk past the end of the texture into whatever memory follows. Illusion handles this by masking H to the texture height at the start of each row (not per pixel -- per-pixel masking would be too expensive). This works because within a single 16-byte row, the H coordinate changes by at most 16 steps, and if the texture is tall enough relative to the row width, an overflow within a row cannot reach memory that produces visual garbage. A 64-row texture with 16 H-steps per row has a comfortable margin.
+Вертикальна вісь (H) теж обгортається, але по всьому діапазону рядків, виділених для текстури. Якщо ти виділяєш 64 рядки (сторінки), H коливається від базової сторінки текстури до base+63. `INC H` і `DEC H` радісно проходять повз кінець текстури у будь-яку пам'ять, що слідує далі. Illusion обробляє це маскуванням H до висоти текстури на початку кожного рядка (не на піксель -- попіксельне маскування було б занадто дорогим). Це працює, тому що в межах одного 16-байтного рядка координата H змінюється щонайбільше на 16 кроків, і якщо текстура достатньо висока відносно ширини рядка, переповнення в межах рядка не може досягти пам'яті, що породжує візуальне сміття. 64-рядкова текстура з 16 кроками H на рядок має комфортний запас.
 
-### Choosing Texture Size
+### Вибір розміру текстури
 
-The texture must be a power-of-two in width (always 256, since L is 8 bits) and ideally a power-of-two in height for easy masking. Common choices:
+Текстура повинна мати ширину степеня двійки (завжди 256, оскільки L 8-бітний) і бажано висоту степеня двійки для легкого маскування. Поширені варіанти:
 
-- **256x256** (64KB): fills all of upper RAM on a 128K Spectrum. Maximum resolution, but leaves no room for code or buffers.
-- **256x64** (16KB): the practical choice. Fits in one 16KB bank on 128K hardware. The 6-bit height mask (`AND $3F`) is fast and tiles seamlessly.
-- **256x32** (8KB): fits on a 48K Spectrum with room for everything else. The texture repeats more visibly, but for a checkerboard or stripe pattern, repetition *is* the design.
-- **256x16** (4KB): minimal. Works for very simple patterns like single-axis stripes.
+- **256x256** (64 КБ): заповнює всю верхню ОЗП на 128K Spectrum. Максимальна роздільність, але не залишає місця для коду чи буферів.
+- **256x64** (16 КБ): практичний вибір. Вміщується в один 16 КБ банк на обладнанні 128K. 6-бітна маска висоти (`AND $3F`) швидка і безшовно тайлиться.
+- **256x32** (8 КБ): вміщується на 48K Spectrum з місцем для всього іншого. Текстура повторюється помітніше, але для шахматного або смугастого патерну повторення *і є* дизайном.
+- **256x16** (4 КБ): мінімум. Працює для дуже простих патернів на кшталт одноосьових смуг.
 
-For non-repeating textures (images, logos), the height should be at least as large as the effective screen height divided by the scale factor. A 2x2 rotozoomer with 96 effective rows needs at least 96 texture rows to avoid visible tiling when the zoom is at 1:1. At higher zoom levels, fewer rows are needed because the camera is "closer" to the texture surface.
+Для текстур, що не повторюються (зображення, логотипи), висота повинна бути щонайменше такою ж, як ефективна висота екрану, поділена на коефіцієнт масштабу. Ротозумер 2x2 з 96 ефективними рядками потребує щонайменше 96 рядків текстури, щоб уникнути видимого тайлінгу при зумі 1:1. При більших рівнях зуму менше рядків потрібно, бо камера "ближче" до поверхні текстури.
 
-### What About Screen Boundaries?
+### А що з межами екрану?
 
-The Spectrum's 256x192 screen is 32 bytes wide by 192 lines. If your rotozoomer fills a 128x96 strip in the centre, you never approach the edge of video memory. But a full-screen rotozoomer at 256x192 (or even 128x192 with 2x2 chunky) must handle the case where the output address reaches the attribute area at `$5800`. The simplest approach: render into a buffer and only copy the portion that fits. A more aggressive approach: clip the row count to the visible area during code generation, which avoids wasted computation but adds complexity to the row loop.
+Екран Spectrum 256x192 має 32 байти ширини на 192 рядки. Якщо твій ротозумер заповнює смугу 128x96 в центрі, ти ніколи не наближаєшся до краю відеопам'яті. Але повноекранний ротозумер при 256x192 (або навіть 128x192 з чанкі 2x2) повинен обробити випадок, коли вихідна адреса досягає області атрибутів за `$5800`. Найпростіший підхід: рендери в буфер і копіюй тільки ту частину, що вміщується. Агресивніший підхід: обрізай кількість рядків до видимої області під час генерації коду, що уникає марних обчислень, але додає складності циклу рядків.
 
-In practice, most Spectrum rotozoomers render a strip smaller than the full screen. The visual framing -- a border, a title bar, a music credit -- hides the cropping and buys back T-states for other effects.
+На практиці більшість ротозумерів Spectrum рендерять смугу, меншу за повний екран. Візуальне обрамлення -- бордюр, титульна смуга, кредит музики -- приховує обрізку і повертає такти для інших ефектів.
 
 ---
 
@@ -308,30 +308,30 @@ In practice, most Spectrum rotozoomers render a strip smaller than the full scre
 
 Розмір чанкі-пікселя — найважливіше проектне рішення в ротозумері:
 
-| Parameter | 2x2 (Illusion) | 4x4 (sq) | 8x8 (attributes) |
-|-----------|----------------|----------|-------------------|
-| Resolution | 128x96 | 64x48 | 32x24 |
-| Texels/frame | 12,288 | 3,072 | 768 |
-| Inner loop cost | ~73,000 T | ~29,000 T | ~7,300 T |
-| Frames/screen | ~1.3 | ~0.5 | ~0.1 |
-| Visual quality | Good motion | Chunky but fast | Very blocky |
-| Use case | Featured effects | Bumpmapping, overlays | Attribute-only FX |
+| Параметр | 2x2 (Illusion) | 4x4 (sq) | 8x8 (атрибути) |
+|----------|----------------|----------|-----------------|
+| Роздільність | 128x96 | 64x48 | 32x24 |
+| Текселів/кадр | 12 288 | 3 072 | 768 |
+| Вартість внутрішнього циклу | ~73 000 T | ~29 000 T | ~7 300 T |
+| Кадрів/екран | ~1,3 | ~0,5 | ~0,1 |
+| Візуальна якість | Хороший рух | Блочний, але швидкий | Дуже блочний |
+| Застосування | Головні ефекти | Бамп-мапінг, накладки | Ефекти лише на атрибутах |
 
-The 4x4 version fits within a single frame with room for a music engine and other effects. The 2x2 version takes roughly 1.3-1.5 frames (including overhead) but looks substantially better. The 8x8 case is the attribute tunnel from Chapter 9.
+Версія 4x4 вміщується в один кадр з місцем для музичного рушія та інших ефектів. Версія 2x2 займає приблизно 1,3-1,5 кадри (включно з накладними витратами), але виглядає суттєво краще. Випадок 8x8 -- це тунель на атрибутах з Розділу 9.
 
 Коли у тебе є швидкий чанкі-рендерер, ротозумер — лише одне застосування. Той самий рушій керує **бамп-мапінгом** (зчитуй різниці висот замість сирих текселів, виводь тінювання), **черезрядковими ефектами** (рендери непарні/парні рядки на чергових кадрах, подвоюючи ефективну частоту кадрів ціною мерехтіння) та **спотворенням текстури** (варіюй напрямок ходу по рядках для хвильових або пульсуючих ефектів). Ротозумер 4x4 може ділити кадр зі скролтекстом, музичним рушієм та переносом екрану. Робота sq була мотивована саме цією універсальністю.
 
 ---
 
-## Three Approaches to Texture Rotation
+## Три підходи до обертання текстури
 
-Everything above treats the rotozoomer as one technique with a tuneable chunk size. But "rotozoomer" on the Spectrum is really a family of three distinct approaches, each with different inner loops, different visual character, and different performance profiles. They share the same mathematical foundation -- the linear step vectors, the Bresenham-style angle distribution -- but diverge completely at the rendering level.
+Все вище розглядає ротозумер як одну техніку з регульованим розміром чанків. Але "ротозумер" на Spectrum -- це насправді сімейство трьох окремих підходів, кожен з різними внутрішніми циклами, різним візуальним характером і різними профілями продуктивності. Вони поділяють однакову математичну основу -- лінійні крокові вектори, розподіл кутів у стилі Брезенхема -- але повністю розходяться на рівні рендерингу.
 
-### Variant 1: Monochrome Bitmap (Full Pixel Resolution)
+### Варіант 1: Монохромний растр (повна піксельна роздільність)
 
-The purest form: every screen pixel maps to one texel. The texture is monochrome -- one bit per pixel -- so reading a texel means testing a single bit, and writing to the screen means setting or clearing a single bit. No chunky encoding, no block grouping. The result is a rotated texture at the full 256x192 resolution of the Spectrum display.
+Найчистіша форма: кожен екранний піксель відповідає одному текселю. Текстура монохромна -- один біт на піксель -- тому зчитування текселя означає перевірку одного біта, а запис на екран означає встановлення або скидання одного біта. Жодного чанкі-кодування, жодного групування блоків. Результат -- повернута текстура з повною роздільністю 256x192 дисплея Spectrum.
 
-The inner loop skeleton looks something like this:
+Скелет внутрішнього циклу виглядає приблизно так:
 
 ```z80 id:ch07_variant_1_monochrome_bitmap
 ; For each screen pixel:
@@ -349,29 +349,29 @@ The inner loop skeleton looks something like this:
     ; ... next pixel
 ```
 
-Note that SET and RES only work with (HL), (IX+d), or (IY+d) -- not (DE) or (BC). This forces HL to serve as the screen pointer, while DE handles the texture coordinates.
+Зверни увагу, що SET і RES працюють лише з (HL), (IX+d) або (IY+d) -- не з (DE) чи (BC). Це змушує HL слугувати вказівником екрану, тоді як DE обробляє координати текстури.
 
-The per-pixel cost is brutal: 35-45 T-states minimum, with branching on every pixel. Across 49,152 pixels, that is 1.5 to 2 million T-states for the rendering pass alone -- roughly 21-28 frames on a standard Spectrum. A full-screen monochrome rotozoomer at 50fps is not happening.
+Попіксельна вартість брутальна: мінімум 35-45 тактів, з розгалуженням на кожному пікселі. На 49 152 пікселів це 1,5-2 мільйони тактів лише для проходу рендерингу -- приблизно 21-28 кадрів на стандартному Spectrum. Повноекранний монохромний ротозумер на 50fps неможливий.
 
-But nobody said you need to fill the whole screen. The technique shines when applied to a smaller region -- a 128x64 strip, a circular viewport, a masked area -- or when you accept a lower frame rate in exchange for the visual impact of full-resolution rotation. It also works beautifully for distortion effects where the "rotation" is not uniform: varying the step vectors per scanline produces wave distortions, barrel effects, and the "sonic ripple" look seen in parts of Illusion by Dark/X-Trade. The coordinate mapping is no longer a simple rotation but a per-line warp through the texture. The maths is the same -- fixed-point stepping along a direction -- but the direction itself changes every row.
+Але ніхто не казав, що треба заповнювати весь екран. Техніка сяє при застосуванні до меншої області -- смуги 128x64, кругового вікна, замаскованої ділянки -- або коли ти приймаєш нижчу частоту кадрів в обмін на візуальний вплив обертання з повною роздільністю. Вона також чудово працює для ефектів спотворення, де "обертання" не рівномірне: варіювання крокових векторів по рядках розгортки породжує хвильові спотворення, бочкові ефекти та вигляд "звукової хвилі", видимий у частинах Illusion від Dark/X-Trade. Відображення координат -- більше не просте обертання, а порядкове викривлення через текстуру. Математика та сама -- крокування з фіксованою точкою вздовж напрямку -- але сам напрямок змінюється кожен рядок.
 
-The visual payoff is striking. Where a 2x2 chunky rotozoomer looks like a rotating mosaic, the monochrome bitmap version looks like a rotating *image*. On a machine where every effect fights the same 69,888 T-state budget, dedicating multiple frames to full-resolution rendering is a deliberate aesthetic choice.
+Візуальна віддача вражає. Там, де чанкі-ротозумер 2x2 виглядає як обертова мозаїка, версія з монохромним растром виглядає як обертове *зображення*. На машині, де кожен ефект бореться за той самий бюджет у 69 888 тактів, присвятити кілька кадрів рендерингу з повною роздільністю -- це свідомий естетичний вибір.
 
-### Variant 2: Chunky Rotozoomer (2x2 or 4x4 Blocks)
+### Варіант 2: Чанкі-ротозумер (блоки 2x2 або 4x4)
 
-This is the technique covered in the bulk of this chapter. Each screen block (2x2 or 4x4 pixels) maps to one texel. The `$03`/`$00` encoding, the `add a,a : add a,(hl)` accumulation, the walk-instruction patching -- all of it targets this approach.
+Це техніка, розглянута в основній частині цього розділу. Кожен екранний блок (2x2 або 4x4 пікселі) відповідає одному текселю. Кодування `$03`/`$00`, накопичення `add a,a : add a,(hl)`, патчінг інструкцій ходу -- все це спрямоване на цей підхід.
 
-At 2x2 (128x96 effective resolution), the inner loop runs at approximately 95 T-states per output byte, producing the smooth, recognisable rotozoomer seen in Illusion. At 4x4 (64x48), sq's pre-generated procedure variant eliminates the loop overhead entirely, bringing the cost down to 76-78 T-states per output pair and leaving room for multi-effect compositions within a single frame.
+При 2x2 (ефективна роздільність 128x96) внутрішній цикл працює приблизно 95 тактів на вихідний байт, створюючи плавний, впізнаваний ротозумер, видимий в Illusion. При 4x4 (64x48) варіант sq з попередньо згенерованими процедурами усуває накладні витрати циклу повністю, знижуючи вартість до 76-78 тактів на вихідну пару і залишаючи місце для багатоефектних композицій у межах одного кадру.
 
-The chunky rotozoomer occupies the middle ground: fast enough for real-time, detailed enough to carry a featured effect. It is the workhorse of the Spectrum rotozoomer repertoire.
+Чанкі-ротозумер займає середню позицію: достатньо швидкий для реального часу, достатньо деталізований для головного ефекту. Він -- робочий кінь репертуару ротозумерів Spectrum.
 
-### Variant 3: Attribute Rotozoomer (8x8 Block "Pixels")
+### Варіант 3: Ротозумер на атрибутах (блочні "пікселі" 8x8)
 
-The Spectrum's attribute area at `$5800`-`$5AFF` stores colour information for each 8x8 pixel character cell: 32 columns by 24 rows, 768 bytes total. Each byte encodes INK, PAPER, BRIGHT, and FLASH for a single 8x8 block. The attribute rotozoomer ignores the bitmap entirely and treats these 768 attribute cells as the display surface. Each cell becomes one "pixel" in a 32x24 image.
+Область атрибутів Spectrum за `$5800`-`$5AFF` зберігає кольорову інформацію для кожної символьної комірки 8x8 пікселів: 32 стовпці на 24 рядки, 768 байт загалом. Кожен байт кодує INK, PAPER, BRIGHT і FLASH для одного блоку 8x8. Ротозумер на атрибутах повністю ігнорує растр і трактує ці 768 комірок атрибутів як поверхню відображення. Кожна комірка стає одним "пікселем" у зображенні 32x24.
 
-The inner loop is structurally identical to the chunky version -- step through texture coordinates, read a value, write it to the output -- but the output is the attribute area, and the "texel" value is a colour attribute byte rather than a bit pattern. The effective resolution is just 32x24, which means the entire rendering pass is 768 iterations of the stepping loop.
+Внутрішній цикл структурно ідентичний чанкі-версії -- крокуй через координати текстури, зчитай значення, запиши його на вихід -- але вихід -- це область атрибутів, а значення "текселя" -- це байт кольорового атрибуту, а не бітовий патерн. Ефективна роздільність -- лише 32x24, що означає, що весь прохід рендерингу -- 768 ітерацій крокового циклу.
 
-The maths:
+Математика:
 
 ```text
 32 columns x 24 rows = 768 attribute cells
@@ -379,24 +379,24 @@ The maths:
 768 x 10 = ~7,680 T-states total
 ```
 
-That is roughly 11% of a single frame. You could run the attribute rotozoomer nine times over and still have room for a music engine. The cost is so low that the effect is essentially free.
+Це приблизно 11% одного кадру. Ти міг би запустити ротозумер на атрибутах дев'ять разів і все ще мати місце для музичного рушія. Вартість настільки низька, що ефект фактично безкоштовний.
 
-But the visual payoff is different from the bitmap variants. You are not rotating pixels -- you are rotating coloured blocks. At 32x24, fine detail is invisible. What you get instead is a sweeping field of colour, a vivid mosaic that turns and breathes. The attribute rotozoomer in Illusion uses exactly this: a boldly coloured texture (not a monochrome bitmap) mapped through the attribute grid, producing the characteristic "stained glass" look of rotating colour fields that Illusion is known for. The PAPER and INK fields in each attribute byte give you two colours per cell, so a carefully designed texture can pack more visual information than the raw resolution suggests.
+Але візуальна віддача відрізняється від растрових варіантів. Ти обертаєш не пікселі -- ти обертаєш кольорові блоки. При 32x24 дрібна деталізація невидима. Натомість ти отримуєш широке поле кольору, живу мозаїку, що обертається і дихає. Ротозумер на атрибутах в Illusion використовує саме це: сміливо забарвлену текстуру (не монохромний растр), відображену через сітку атрибутів, що породжує характерний вигляд "вітража" обертових кольорових полів, яким відомий Illusion. Поля PAPER та INK у кожному байті атрибуту дають два кольори на комірку, тому ретельно спроектована текстура може вмістити більше візуальної інформації, ніж підказує сира роздільність.
 
-The attribute rotozoomer is perfect for backgrounds, transitions, or as a base layer with pixel-level effects composited on top. Because it only writes to the attribute area, the bitmap can be used simultaneously for a different effect -- a scroller, a logo, a particle field -- running at its own pace. This layered approach is a hallmark of multi-effect demo screens on the Spectrum.
+Ротозумер на атрибутах ідеальний для фонів, переходів або як базовий шар з піксельними ефектами, скомпонованими зверху. Оскільки він записує лише в область атрибутів, растр може використовуватися одночасно для іншого ефекту -- скролера, логотипу, поля частинок -- що працює у своєму темпі. Цей багатошаровий підхід -- відмітна риса багатоефектних демо-екранів на Spectrum.
 
-### Comparison
+### Порівняння
 
-| Variant | Effective resolution | Bytes written/frame | ~T-states (render) | Colour | Typical use |
-|---------|---------------------|--------------------|--------------------|--------|-------------|
-| Monochrome bitmap | 256x192 (or subregion) | 6,144 (full screen) | 1,500,000-2,000,000 | 1-bit | Hero effect, distortion, warp |
-| Chunky 2x2 | 128x96 | 1,536 | ~73,000 | 1-bit | Featured rotozoomer |
-| Chunky 4x4 | 64x48 | 384 | ~29,000 | 1-bit | Multi-effect, overlay |
-| Attribute | 32x24 | 768 | ~7,700 | INK+PAPER (2 colours/cell) | Background, colour wash, transition |
+| Варіант | Ефективна роздільність | Байт записано/кадр | ~Тактів (рендеринг) | Колір | Типове застосування |
+|---------|------------------------|-------------------|---------------------|-------|---------------------|
+| Монохромний растр | 256x192 (або підобласть) | 6 144 (повний екран) | 1 500 000-2 000 000 | 1-біт | Головний ефект, спотворення, викривлення |
+| Чанкі 2x2 | 128x96 | 1 536 | ~73 000 | 1-біт | Головний ротозумер |
+| Чанкі 4x4 | 64x48 | 384 | ~29 000 | 1-біт | Багатоефектний, накладка |
+| Атрибутний | 32x24 | 768 | ~7 700 | INK+PAPER (2 кольори/комірку) | Фон, заливка кольором, перехід |
 
-The progression from top to bottom is a smooth trade: resolution for speed, detail for headroom. The monochrome bitmap gives you everything the Spectrum's display can show, at a cost that demands dedication. The attribute version gives you almost nothing in resolution, but it runs so fast that the rotozoomer becomes just another instrument in a multi-effect composition rather than the main event.
+Прогресія зверху вниз -- це плавний обмін: роздільність на швидкість, деталізація на запас. Монохромний растр дає тобі все, що дисплей Spectrum може показати, за ціну, що вимагає відданості. Версія на атрибутах дає майже нічого в роздільності, але працює настільки швидко, що ротозумер стає лише ще одним інструментом у багатоефектній композиції, а не головною подією.
 
-All four rows in this table share the same core algorithm. The step vectors are computed the same way. The Bresenham distribution works the same way. The difference is only where you write and how many iterations you run. Once you have built one rotozoomer, you have built all of them.
+Всі чотири рядки в цій таблиці поділяють один і той самий ядровий алгоритм. Крокові вектори обчислюються однаково. Розподіл Брезенхема працює однаково. Різниця лише в тому, куди ти пишеш і скільки ітерацій виконуєш. Побудувавши один ротозумер, ти побудував їх усі.
 
 ---
 

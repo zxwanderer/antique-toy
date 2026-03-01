@@ -76,7 +76,7 @@ graph TD
     style AC fill:#dfd,stroke:#393
 ```
 
-> **The architectural shift:** On the Spectrum, the CPU _is_ the rendering engine — every pixel is placed by Z80 instructions. On the Agon, the CPU is a _command sequencer_ — it tells the VDP what to draw, and the ESP32 coprocessor handles the actual rendering. The CPU cost drops from ~1,200T to ~50T per sprite, but you now manage an asynchronous command pipeline with serial latency.
+> **Архітектурний зсув:** На Spectrum CPU _є_ рушієм рендерингу --- кожен піксель розміщується інструкціями Z80. На Agon CPU --- _секвенсер команд_ --- він повідомляє VDP, що малювати, а співпроцесор ESP32 обробляє фактичний рендеринг. Вартість CPU падає з ~1 200T до ~50T на спрайт, але тепер ти керуєш асинхронним командним конвеєром із затримкою послідовного зв'язку.
 
 ---
 
@@ -422,7 +422,7 @@ scroll_tilemap:
 
 На Agon усі 512 КБ видно одночасно. Банкування немає. Немає трюку з тіньовим екраном (VDP обробляє подвійну буферизацію внутрішньо). Ти можеш мати всю гру — усі п'ять рівнів, усі тайлсети, усі спрайти, усю музику — резидентно в пам'яті одночасно. Переходи між рівнями не вимагають завантаження з касети чи диска; ти просто вказуєш на іншу ділянку RAM.
 
-This simplifies development, but it also removes a constraint that forced good architecture. On the Spectrum, you were forced to think about data locality, about what needed to be co-resident, about load sequences. On the Agon, you can be sloppy. Do not be sloppy. The Agon has 512 KB, not infinity. A well-organized memory map is still a virtue.
+Це спрощує розробку, але також знімає обмеження, яке змушувало створювати хорошу архітектуру. На Spectrum ти був змушений думати про локальність даних, про те, що повинно бути спільно резидентним, про послідовності завантаження. На Agon можна бути неакуратним. Не будь неакуратним. У Agon 512 КБ, а не нескінченність. Добре організована карта пам'яті --- все ще чеснота.
 
 Типова розкладка пам'яті Agon для портованої гри:
 
@@ -727,7 +727,7 @@ main:
 
 ## Чому кожна платформа робить тебе кращим
 
-The Spectrum teaches cycle-level efficiency and creative constraint-solving: you learn to count T-states, exploit memory layout, and invent techniques like multicolour and attribute-only effects that exist only because of the hardware's limitations. The Agon teaches system architecture: managing an asynchronous coprocessor, structuring command pipelines, and building asset conversion tools for larger data volumes. The Spectrum makes you a better optimiser; the Agon makes you a better system designer. Both skills transfer.
+Spectrum навчає ефективності на рівні тактів і творчого розв'язання обмежень: ти вчишся рахувати такти, використовувати розкладку пам'яті та винаходити техніки на кшталт мультиколору та ефектів лише на атрибутах, що існують тільки завдяки обмеженням апаратури. Agon навчає системній архітектурі: керуванню асинхронним співпроцесором, структуруванню командних конвеєрів та побудові інструментів конвертації ресурсів для більших обсягів даних. Spectrum робить тебе кращим оптимізатором; Agon робить тебе кращим системним архітектором. Обидві навички переносяться.
 
 ---
 

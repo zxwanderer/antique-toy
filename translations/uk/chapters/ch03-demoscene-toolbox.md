@@ -22,9 +22,9 @@
     djnz .loop           ; 13 T  (8 on last iteration)
 ```
 
-Each iteration costs 7 + 6 + 13 = 26 T-states to store a single byte. Only 7 of those T-states do the work --- the rest is overhead. That is 73% waste. For 256 bytes: 256 x 26 - 5 = 6,651 T-states. On a machine where you have 71,680 T-states per frame, those wasted T-states hurt.
+Кожна ітерація коштує 7 + 6 + 13 = 26 тактів для запису одного байта. Лише 7 з цих тактів виконують роботу --- решта накладні витрати. Це 73% марних витрат. Для 256 байтів: 256 x 26 - 5 = 6 651 такт. На машині, де ти маєш 71 680 тактів на кадр, ці змарновані такти відчутні.
 
-### Unrolling: trade RAM for speed
+### Розгортка: обмін RAM на швидкість
 
 Рішення — грубе й ефективне: випиши тіло циклу N разів і видали цикл.
 
@@ -42,7 +42,7 @@ Each iteration costs 7 + 6 + 13 = 26 T-states to store a single byte. Only 7 of 
 
 Кожен байт тепер коштує 7 + 6 = 13 тактів. Жодного DJNZ. Жодного лічильника циклу. Загалом: 256 x 13 = 3 328 тактів --- половина від версії з циклом.
 
-The cost is code size: 256 repetitions occupy 512 bytes vs. 7 for the loop. You are trading RAM for speed.
+Ціна --- розмір коду: 256 повторень займають 512 байтів проти 7 для циклу. Ти обмінюєш RAM на швидкість.
 
 **Коли розгортати:** Внутрішні цикли, що виконуються тисячі разів за кадр --- очищення екрану, малювання спрайтів, копіювання даних.
 
@@ -81,9 +81,9 @@ restore_sp:
 
 `ld (nn), sp` зберігає поточний SP безпосередньо в операнд пізнішої `ld sp, nn`. Жодної тимчасової змінної. Це ідіоматичний Z80-демосценовий код.
 
-### Self-modifying variables: the `$+1` pattern
+### Самомодифіковані змінні: патерн `$+1`
 
-The most pervasive SMC pattern on the ZX Spectrum is not patching opcodes or saving SP --- it is embedding a *variable* directly inside an instruction's immediate operand. The idea is simple: instead of storing a counter in a named memory location and loading it with `LD A,(nn)` at 13 T-states, you let the instruction's own operand byte *be* the variable.
+Найпоширеніший патерн SMC на ZX Spectrum --- не підміна опкодів і не збереження SP, а вбудовування *змінної* безпосередньо в безпосередній операнд інструкції. Ідея проста: замість зберігання лічильника в іменованій комірці пам'яті та завантаження через `LD A,(nn)` за 13 тактів, ти дозволяєш байту операнда самої інструкції *бути* змінною.
 
 ```z80 id:ch03_smc_dollar_plus_one
 .smc_counter:
@@ -92,9 +92,9 @@ The most pervasive SMC pattern on the ZX Spectrum is not patching opcodes or sav
     ld   (.smc_counter + 1), a   ; 13T — write back to the operand byte
 ```
 
-The `ld a, 0` fetches its operand as part of the normal instruction decode --- 7 T-states total, and the value is already in A. Compare that to loading from a separate memory address: `ld a, (counter)` costs 13 T-states, plus you still need a separate `ld (counter), a` at 13 T-states to write it back. The SMC version reads the variable for free (it is part of the instruction fetch) and only pays the 13 T-states once for the write-back.
+`ld a, 0` зчитує свій операнд як частину нормального декодування інструкції --- 7 тактів загалом, і значення вже в A. Порівняй із завантаженням з окремої адреси пам'яті: `ld a, (counter)` коштує 13 тактів, плюс тобі все одно потрібна окрема `ld (counter), a` за 13 тактів для зворотного запису. SMC-версія читає змінну безкоштовно (вона є частиною вибірки інструкції) і платить 13 тактів лише один раз за зворотний запис.
 
-In sjasmplus, you can place a label at `$+1` to give the embedded variable a readable name:
+У sjasmplus ти можеш поставити мітку на `$+1`, щоб дати вбудованій змінній читабельне ім'я:
 
 ```z80 id:ch03_smc_named_variable
     ld   a, 0                    ; 7T
@@ -103,9 +103,9 @@ In sjasmplus, you can place a label at `$+1` to give the embedded variable a rea
     ld   (.scroll_pos), a       ; 13T — store back into the operand
 ```
 
-This pattern appears everywhere in ZX Spectrum code: scroll positions, animation frame counters, effect phase accumulators, direction flags. Any single-byte value that persists between calls is a candidate. You will see it constantly in Parts II and V --- practically every effect routine in this book uses at least one self-modifying variable.
+Цей патерн з'являється всюди в коді ZX Spectrum: позиції скролу, лічильники кадрів анімації, акумулятори фази ефектів, прапорці напрямку. Будь-яке однобайтове значення, що зберігається між викликами --- кандидат. Ти бачитимеш його постійно у частинах II та V --- практично кожна процедура ефекту в цій книзі використовує щонайменше одну самомодифіковану змінну.
 
-The convention is to prefix these labels with `.smc_` or place them immediately after the instruction they modify. Either way, the intent should be clear to anyone reading the source. As we noted in Chapter 2, local labels (`.label`) prevent naming collisions when multiple routines each have their own embedded variables.
+Конвенція --- давати цим міткам префікс `.smc_` або ставити їх одразу після інструкції, яку вони модифікують. У будь-якому випадку, намір має бути зрозумілим кожному, хто читає вихідний код. Як ми зазначили в Розділі 2, локальні мітки (`.label`) запобігають конфліктам імен, коли кілька процедур мають власні вбудовані змінні.
 
 **Застереження.** SMC безпечний на Z80, eZ80 та кожному клоні Spectrum. Він *не* безпечний на сучасних процесорах з кешуванням (x86, ARM) без явних інструкцій скидання кешу. Якщо ти портуєш на іншу архітектуру, це перше, що зламається.
 
@@ -197,20 +197,20 @@ restore_sp:
 
 ![PUSH-based screen fill — the entire pixel area filled in a single frame using the stack trick](../../build/screenshots/ch03_push_fill.png)
 
-### POP as a fast read
+### POP як швидке читання
 
-PUSH is the fastest write, but POP is the fastest *read*. POP loads 2 bytes from (SP) into a register pair in 10 T-states --- that is 5.0 T-states per byte. Compare the alternatives:
+PUSH --- найшвидший запис, але POP --- найшвидше *читання*. POP завантажує 2 байти з (SP) у регістрову пару за 10 тактів --- це 5,0 тактів на байт. Порівняй альтернативи:
 
-| Method | Bytes read | T-states | T-states per byte |
-|--------|-----------|----------|-------------------|
-| `ld a, (hl)` + `inc hl` | 1 | 13 | 13.0 |
-| `ld a, (hl)` + `inc l` | 1 | 11 | 11.0 |
-| `ldi` (as a read+write) | 1 | 16 | 16.0 |
-| `pop hl` | 2 | 10 | **5.0** |
+| Метод | Прочитано байтів | Тактів | Тактів на байт |
+|-------|-----------------|--------|----------------|
+| `ld a, (hl)` + `inc hl` | 1 | 13 | 13,0 |
+| `ld a, (hl)` + `inc l` | 1 | 11 | 11,0 |
+| `ldi` (як читання+запис) | 1 | 16 | 16,0 |
+| `pop hl` | 2 | 10 | **5,0** |
 
-The pattern: pre-build a table of 16-bit values in memory, point SP at the start of the table, and POP into register pairs. Each POP advances SP by 2, walking through the table automatically. This is the read-side complement of the PUSH write trick.
+Патерн: попередньо побудуй таблицю 16-бітних значень у пам'яті, вкажи SP на початок таблиці та виконуй POP у регістрові пари. Кожний POP просуває SP на 2, автоматично проходячи по таблиці. Це комплементарний до PUSH-запису трюк на стороні читання.
 
-Combine POP and PUSH and you get a fast memory-to-memory pipe: POP a value from a source table (10T), process the register pair if needed, then PUSH it to the destination (11T). Total: 21 T-states for 2 bytes --- the same throughput as LDIR, but with the register pair available for processing between the read and write. You can mask bits, add offsets, swap bytes, or apply any register-to-register transformation at no extra memory-access cost. This POP-process-PUSH pipeline is the backbone of many compiled sprite routines.
+Поєднай POP та PUSH, і ти отримаєш швидкий канал пам'ять-пам'ять: POP значення з таблиці-джерела (10T), обробка регістрової пари за потреби, потім PUSH у місце призначення (11T). Разом: 21 такт на 2 байти --- та сама пропускна здатність, що й LDIR, але з регістровою парою, доступною для обробки між читанням та записом. Ти можеш маскувати біти, додавати зсуви, міняти місцями байти або застосовувати будь-яке перетворення регістр-регістр без додаткової вартості доступу до пам'яті. Цей конвеєр POP-обробка-PUSH --- основа багатьох процедур скомпільованих спрайтів.
 
 ### Де використовуються PUSH-трюки
 
@@ -240,7 +240,7 @@ LDIR коштує на 5 тактів більше за байт через вн
 - 256 x LDI: 256 x 16 = 4 096 тактів
 - Економія: 1 275 тактів (24%)
 
-A chain of individual LDI instructions is just 256 repetitions of the two-byte opcode `$ED $A0`. That is 512 bytes of code to save 24% --- the same RAM-for-speed trade-off as loop unrolling.
+Ланцюжок окремих інструкцій LDI --- це просто 256 повторень двобайтового опкоду `$ED $A0`. Це 512 байтів коду для заощадження 24% --- той самий обмін RAM на швидкість, що й розгортка циклу.
 
 ### Коли LDI-ланцюжки блищать
 
@@ -272,13 +272,13 @@ ldi_chain:
 
 ---
 
-## Bit Tricks: SBC A,A and Friends
+## Бітові трюки: SBC A,A та друзі
 
-### SBC A,A as a conditional mask
+### SBC A,A як умовна маска
 
-After any instruction that produces a carry flag, `SBC A,A` converts that flag into a full byte: $FF if carry was set, $00 if not. The cost: 4 T-states. Compare this to the branching alternative --- `JR C,.set` / `LD A,0` / `JR .done` / `.set: LD A,$FF` / `.done:` --- which costs 17-22 T-states depending on which path is taken, plus the pipeline disruption of a conditional branch.
+Після будь-якої інструкції, що виставляє прапорець перенесення, `SBC A,A` конвертує цей прапорець у повний байт: $FF, якщо перенесення було встановлене, $00 --- якщо ні. Вартість: 4 такти. Порівняй з альтернативою на розгалуженнях --- `JR C,.set` / `LD A,0` / `JR .done` / `.set: LD A,$FF` / `.done:` --- яка коштує 17–22 такти залежно від обраного шляху, плюс порушення конвеєра через умовний перехід.
 
-The canonical use case is *bit-to-byte expansion*. Given a byte where each bit represents a pixel (the Spectrum's pixel format), you can expand each bit into a full attribute byte:
+Канонічний випадок використання --- *розгортка біта в байт*. Маючи байт, де кожний біт представляє піксель (піксельний формат Spectrum), ти можеш розгорнути кожний біт у повний байт атрибута:
 
 ```z80 id:ch03_sbc_bit_expand
     rlc  (hl)            ; rotate top bit into carry    — 15T
@@ -286,19 +286,19 @@ The canonical use case is *bit-to-byte expansion*. Given a byte where each bit r
     and  $47             ; A = bright white ($47) or $00 — 7T
 ```
 
-Three instructions, 26 T-states, no branches. To select between two *arbitrary* values rather than zero and a mask, use the pattern `SBC A,A : AND mask : XOR base`. The AND selects which bits change between the two values, and the XOR flips them to the desired base. This pattern replaces every "if bit set then value A else value B" test in your inner loops.
+Три інструкції, 26 тактів, жодних розгалужень. Для вибору між двома *довільними* значеннями, а не між нулем та маскою, використовуй патерн `SBC A,A : AND mask : XOR base`. AND вибирає, які біти змінюються між двома значеннями, а XOR перекидає їх до бажаної основи. Цей патерн замінює кожну перевірку "якщо біт встановлений --- значення A, інакше --- значення B" у твоїх внутрішніх циклах.
 
-### ADD A,A vs SLA A
+### ADD A,A проти SLA A
 
-Both instructions shift A left by one bit. But `ADD A,A` is 4 T-states and 1 byte, while `SLA A` is 8 T-states and 2 bytes. There is no situation where SLA A is preferable --- `ADD A,A` is strictly faster and smaller. Similarly, `ADD HL,HL` shifts HL left in 11 T-states (1 byte), replacing the two-instruction sequence `SLA L : RL H` at 16 T-states (4 bytes). For a 16-bit left shift inside an inner loop running 192 times per frame, that substitution alone saves 960 T-states --- over four scanlines of border time.
+Обидві інструкції зсувають A вліво на один біт. Але `ADD A,A` --- це 4 такти та 1 байт, тоді як `SLA A` --- 8 тактів та 2 байти. Немає ситуації, де SLA A переважніша --- `ADD A,A` суворо швидша та менша. Аналогічно, `ADD HL,HL` зсуває HL вліво за 11 тактів (1 байт), замінюючи двоінструкційну послідовність `SLA L : RL H` за 16 тактів (4 байти). Для 16-бітного зсуву вліво всередині внутрішнього циклу, що виконується 192 рази за кадр, ця заміна сама по собі заощаджує 960 тактів --- більше чотирьох рядків розгортки бордюрного часу.
 
-These are not tricks. They are vocabulary. Just as a fluent speaker does not pause to conjugate common verbs, a Z80 programmer reaches for `ADD A,A` and `SBC A,A` without conscious thought. If you find yourself writing `SLA A` or a conditional branch to select between two values, stop and reach for the shorter form. The T-states add up.
+Це не трюки. Це словниковий запас. Так само як вільний мовець не зупиняється, щоб відмінити поширені дієслова, Z80-програміст тягнеться до `ADD A,A` та `SBC A,A` без свідомих зусиль. Якщо ти ловиш себе на написанні `SLA A` або умовного переходу для вибору між двома значеннями, зупинись і потягнися за коротшою формою. Такти складаються.
 
 ---
 
 ## Генерація коду
 
-### Code generation: writing the program that draws
+### Генерація коду: написання програми, що малює
 
 Все перераховане вище --- фіксована оптимізація: код працює однаково кожен кадр. Генерація коду йде далі: твоя програма пише програму, що малює екран. Є два варіанти: офлайн (перед асемблюванням) та під час виконання.
 
@@ -347,13 +347,13 @@ Introspec використовував Processing (середовище креа
 
 Згенерований код --- це прямолінійна послідовність без розгалужень, без пошуків, без накладних витрат циклу --- але це *різний код кожен кадр*. Замість "if pixel_skip == 3 then..." на 12 тактів за розгалуження, ти видаєш саме ті інструкції, що потрібні, й виконуєш їх без розгалужень.
 
-### The cost of generation
+### Вартість генерації
 
-Runtime code generation is not free. Look at the generator loop above: each emitted instruction requires loading an opcode byte, storing it, advancing the pointer, and possibly loading an operand --- roughly 30-50 T-states per emitted byte, depending on complexity. Call it ~40 T-states on average. For a generated routine of 100 instruction bytes, that is about 4,000 T-states of generation overhead.
+Генерація коду під час виконання не безкоштовна. Подивися на цикл генератора вище: кожна видана інструкція вимагає завантаження байта опкоду, його збереження, просування вказівника та, можливо, завантаження операнда --- приблизно 30–50 тактів на виданий байт залежно від складності. Рахуй приблизно ~40 тактів у середньому. Для згенерованої процедури зі 100 байтів інструкцій це приблизно 4 000 тактів накладних витрат на генерацію.
 
-The break-even point: generation pays off when the generated code runs more than once per frame, or when it replaces branching logic that costs more than the generation itself. In the Illusion sphere mapper, each generated rendering pass executes once per frame --- but it replaces per-pixel conditional branches that would cost far more. Alone Coder documented a similar trade-off in his rotation engine: generating a sequence of INC H/INC L instructions for coordinate stepping costs roughly 5,000 T-states to emit, but eliminates coordinate arithmetic that would cost approximately 146,000 T-states if computed inline. The generation overhead is under 4% of the cost it replaces.
+Точка беззбитковості: генерація окупається, коли згенерований код виконується більше одного разу за кадр, або коли він замінює логіку розгалужень, що коштує більше за саму генерацію. У маппері сфери Illusion кожний згенерований прохід рендерингу виконується раз за кадр --- але він замінює попіксельні умовні переходи, що коштували б значно більше. Alone Coder задокументував подібний компроміс у своєму рушії обертання: генерація послідовності інструкцій INC H/INC L для кроків координат коштує приблизно 5 000 тактів на генерацію, але усуває арифметику координат, яка коштувала б приблизно 146 000 тактів при обчисленні інлайн. Накладні витрати на генерацію --- менше 4% від вартості, яку вона замінює.
 
-The rule of thumb: if you find yourself writing a loop that contains branches selecting between different instruction sequences based on per-pixel or per-line data, that loop is a candidate for code generation. Emit the right instructions once, execute them branch-free, and regenerate only when the parameters change.
+Правило: якщо ти ловиш себе на написанні циклу, що містить розгалуження для вибору між різними послідовностями інструкцій на основі попіксельних або порядкових даних, цей цикл --- кандидат на генерацію коду. Видай правильні інструкції один раз, виконай їх без розгалужень та перегенеруй лише коли параметри зміняться.
 
 **Коли генерувати код:** Якщо ті самі операції відбуваються кожен кадр з лише зміною даних, самомодифікованого коду (підміна операндів) достатньо. Якщо змінюється *структура* --- інша кількість ітерацій, інші послідовності інструкцій --- генеруй код. Якщо ти можеш попередньо обчислити варіації на сучасній машині, віддай перевагу офлайн-генерації: вона зневаджувана, перевіряєма й не має витрат під час виконання. Генерація під час виконання окупається, коли згенерований код виконується набагато частіше, ніж коштує його генерація.
 
@@ -443,15 +443,15 @@ DenisGrachev дослідив три підходи до побудови спи
 
 Техніки в цьому розділі не ізольовані. На практиці вони компонуються:
 
-- **Screen clearing** combines *unrolled loops* with *PUSH tricks*: a partially unrolled loop of 16 PUSHes per iteration, with SP hijacked via *self-modifying code*.
-- **Compiled sprites** combine *code generation* (each sprite compiles to executable code), *POP reads* and *PUSH output* (the fastest way to move pixel data through registers), *bit tricks* (SBC A,A for mask expansion), and *self-modification* (patching screen addresses per frame).
-- **Tile engines** combine *RET-chaining* for dispatch with *LDI chains* inside each tile routine for fast data copy.
-- **Chaos zoomers** combine *offline code generation* (Processing scripts emitting assembly) with *LDI chains* (the generated code is mostly LDI sequences) and *self-modification* (patching source addresses per frame).
-- **Attribute effects** combine *POP reads* from pre-computed tables with *bit tricks* (SBC A,A to expand bitmasks into colour values) and *PUSH writes* for fast attribute output.
+- **Очищення екрану** поєднує *розгорнуті цикли* з *PUSH-трюками*: частково розгорнутий цикл з 16 PUSH'ів на ітерацію, зі SP, захопленим через *самомодифікований код*.
+- **Скомпільовані спрайти** поєднують *генерацію коду* (кожний спрайт компілюється у виконуваний код), *POP-читання* та *PUSH-вивід* (найшвидший спосіб переміщення піксельних даних через регістри), *бітові трюки* (SBC A,A для розгортки маски) та *самомодифікацію* (підстановка екранних адрес на кожний кадр).
+- **Тайлові рушії** поєднують *RET-ланцюжок* для диспетчеризації з *LDI-ланцюжками* всередині кожної тайлової процедури для швидкого копіювання даних.
+- **Хаос-зумери** поєднують *офлайн-генерацію коду* (скрипти Processing, що видають асемблер) з *LDI-ланцюжками* (згенерований код --- переважно послідовності LDI) та *самомодифікацією* (підстановка адрес джерела на кожний кадр).
+- **Атрибутні ефекти** поєднують *POP-читання* з попередньо обчислених таблиць з *бітовими трюками* (SBC A,A для розгортки бітових масок у колірні значення) та *PUSH-записи* для швидкого виводу атрибутів.
 
-The common thread: every technique eliminates something from the inner loop. Unrolling eliminates the loop counter. Self-modification eliminates branches. PUSH eliminates per-byte write overhead. POP eliminates per-byte read overhead. LDI chains eliminate the LDIR repeat penalty. Bit tricks eliminate conditional branches. Code generation eliminates the entire distinction between code and data. RET-chaining eliminates CALL overhead.
+Спільна нитка: кожна техніка усуває щось із внутрішнього циклу. Розгортка усуває лічильник циклу. Самомодифікація усуває розгалуження. PUSH усуває побайтові накладні витрати на запис. POP усуває побайтові накладні витрати на читання. LDI-ланцюжки усувають штраф повторення LDIR. Бітові трюки усувають умовні переходи. Генерація коду усуває саме розрізнення між кодом та даними. RET-ланцюжок усуває накладні витрати CALL.
 
-The Z80 runs at 3.5 MHz. You have 71,680 T-states per frame. Every T-state you save in the inner loop is a T-state you can spend on more pixels, more colours, more motion. The toolbox in this chapter is how you get there.
+Z80 працює на 3,5 МГц. У тебе 71 680 тактів на кадр. Кожний такт, заощаджений у внутрішньому циклі --- це такт, який ти можеш витратити на більше пікселів, більше кольорів, більше руху. Інструментарій цього розділу --- ось як ти до цього дістаєшся.
 
 У розділах, що слідують, ти побачиш кожну з цих технік у дії в реальних демо --- текстурованій сфері Illusion, атрибутному тунелі Eager, мультиколорному рушії Old Tower. Мета цього розділу полягала в тому, щоб дати тобі словник. Тепер подивимось, що майстри збудували з ним.
 
@@ -467,8 +467,8 @@ The Z80 runs at 3.5 MHz. You have 71,680 T-states per frame. Every T-state you s
 
 4. **Поекспериментуй з точками входу.** Побудуй LDI-ланцюжок на 128 записів та невелику процедуру, що обчислює точку входу на основі значення в регістрі A (0–128). Стрибай у ланцюжок у різних точках. Це спрощена версія копіювання змінної довжини, що використовується у реальних хаос-зумерах.
 
-5. **Variable-length copier with calculated entry.** Build a 256-entry LDI chain and a front-end that accepts a byte count in register B (1--256). Calculate the entry point: each LDI is 2 bytes, so the offset is (256 - B) x 2 from the start of the chain. Add this to the chain's base address, then JP (HL) into it. Wrap the whole thing in the border-colour harness and compare the stripe width against LDIR for the same byte count. For small counts (under 16), the difference is slim. For counts above 64, the LDI chain pulls visibly ahead.
+5. **Копіювальник змінної довжини з обчисленою точкою входу.** Побудуй LDI-ланцюжок на 256 записів та фронтальну частину, що приймає кількість байтів у регістрі B (1–256). Обчисли точку входу: кожний LDI --- 2 байти, тому зсув --- (256 - B) x 2 від початку ланцюжка. Додай це до базової адреси ланцюжка, потім JP (HL) у нього. Обгорни все це тестовою обв'язкою кольору бордюру та порівняй ширину смуги з LDIR для тієї самої кількості байтів. Для малих кількостей (менше 16) різниця невелика. Для кількостей понад 64 LDI-ланцюжок помітно випереджає.
 
-6. **Bit-to-attribute unpacker.** Write a routine that reads a byte from (HL), rotates each bit out with RLC (HL), and uses `SBC A,A : AND $47` to expand each bit into an attribute byte (bright white or black). Store the 8 resulting attribute bytes to a destination buffer using (DE) / INC DE. This is the seed of a compiled sprite's attribute writer --- in later chapters you will see this pattern generate entire sprite routines.
+6. **Розпаковувач біт-в-атрибут.** Напиши процедуру, що зчитує байт з (HL), витягує кожний біт через RLC (HL) та використовує `SBC A,A : AND $47` для розгортки кожного біта в байт атрибута (яскраво-білий або чорний). Зберігай 8 результуючих байтів атрибутів у цільовий буфер через (DE) / INC DE. Це зародок записувальника атрибутів скомпільованого спрайта --- в наступних розділах ти побачиш, як цей патерн генерує цілі процедури спрайтів.
 
 > **Джерела:** DenisGrachev "Tiles and RET" (Hype, 2025); Introspec "Making of Eager" (Hype, 2015); Introspec "Technical Analysis of Illusion" (Hype, 2017); Introspec "Code is Dead" (Hype, 2015)

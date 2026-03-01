@@ -87,7 +87,7 @@ Pentagon 128, найпопулярніший радянський клон ZX Sp
 
 Ось чому Pentagon має іншу довжину кадру — 71 680 тактів, 320 рядків розгортки. Тайминги ULA дещо відрізняються, бо немає потреби чергувати доступ процесора та ULA. Але виграш величезний: ти можеш рахувати такти з абсолютною впевненістю. Коли твій внутрішній цикл каже, що він коштує 36 тактів на ітерацію, він коштує 36 тактів на ітерацію кожного разу, в будь-якому місці кадру.
 
-This clean timing is why the Pentagon became the standard platform for the ZX Spectrum demoscene, particularly in the Former Soviet Union where these clones were ubiquitous. When you watch demos from groups like X-Trade, 4D+TBK (Triebkraft), or Life on Mars, they are overwhelmingly targeting Pentagon timing. When Introspec wrote his legendary technical teardown of Illusion by X-Trade, the cycle counts he quoted assumed Pentagon.
+Саме ця чистота таймінгів зробила Pentagon стандартною платформою для демосцени ZX Spectrum, особливо на теренах колишнього СРСР, де ці клони були повсюдними. Коли ти дивишся демо від груп на кшталт X-Trade, 4D+TBK (Triebkraft) або Life on Mars, вони переважно орієнтовані на тайминги Pentagon. Коли Introspec написав свій легендарний технічний аналіз Illusion від X-Trade, підрахунки тактів, які він наводив, передбачали Pentagon.
 
 Для навчання модель Pentagon ідеальна: ти можеш зосередитися на розумінні того, скільки коштують інструкції, не турбуючись про ефекти конфлікту. Усі таблиці тактів у цій книзі припускають тайминги Pentagon, якщо не зазначено інше. Коли нам потрібно буде обговорити різницю (а ми обговоримо, у розділі 15), ми будемо чіткими.
 

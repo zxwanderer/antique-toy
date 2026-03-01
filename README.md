@@ -202,6 +202,7 @@ The `tools/` directory contains Python utilities developed alongside the book:
 - **Rombor** -- pixel row bug in Ch.2 screen layout illustration (first external bug report).
 - **Aki** -- relayed SinDiKat Slack feedback: AY chip history corrections (Investronica/8912), PSG terminology.
 - **mborik** -- AY playback frequency clarification, constant-T VGM player concept.
+- **Sergio Morales** -- pixel_addr RRA/RLA bug in Ch.2 (character row calculation).
 
 ## License
 

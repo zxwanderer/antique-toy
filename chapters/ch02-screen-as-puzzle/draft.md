@@ -140,9 +140,8 @@ pixel_addr:
     ld   h, a          ; 4T   H = high byte (partial)
 
     ld   a, b          ; 4T   A = y again
-    rra                ; 4T   \
-    rra                ; 4T    | shift bits 5-3 of y
-    rra                ; 4T   /  down to bits 2-0
+    rla                ; 4T   \  shift bits 5-3 of y
+    rla                ; 4T   /  left to bits 7-5
     and  $E0           ; 7T   mask to get LLL 00000
     ld   l, a          ; 4T   L = LLL 00000 (partial)
 
@@ -161,10 +160,10 @@ pixel_addr:
     and  $1F           ; 7T   mask to CCCCC
     or   l             ; 4T   combine with LLL 00000
     ld   l, a          ; 4T   L = LLL CCCCC (complete)
-                       ; --- Total: ~91 T-states
+                       ; --- Total: ~87 T-states
 ```
 
-91 T-states is not cheap. In a tight inner loop processing thousands of pixels, you would not call this routine per pixel. Instead, you calculate the starting address once and then navigate the screen using fast pointer manipulation -- which brings us to the most important routine in Spectrum graphics programming.
+87 T-states is not cheap. In a tight inner loop processing thousands of pixels, you would not call this routine per pixel. Instead, you calculate the starting address once and then navigate the screen using fast pointer manipulation -- which brings us to the most important routine in Spectrum graphics programming.
 
 ![Pixel plotting demo — individual pixels placed on screen using the address calculation routine](../../build/screenshots/ch02_pixel_demo.png)
 

@@ -446,7 +446,7 @@
 
 `EXX` обмінює BC/DE/HL з BC'/DE'/HL' за **4T**. Це дає тобі шість додаткових 8-бітних регістрів (або три додаткових 16-бітних пари) фактично безкоштовно. Типове використання: зберігати вказівники в тіньовому наборі та обмінювати в/з за потребою.
 
-**Warning:** The Spectrum ROM interrupt handler (IM1) uses IY (it must point to the system variables at $5C3A or to safe memory). Shadow registers BC'/DE'/HL' and AF' are preserved by the ROM ISR and safe to use with interrupts enabled. If your code repurposes IY, disable interrupts first (`DI`) or switch to IM2 with your own handler.
+**Увага:** Обробник переривань ROM Spectrum (IM1) використовує IY (він повинен вказувати на системні змінні за адресою $5C3A або на безпечну пам'ять). Тіньові регістри BC'/DE'/HL' та AF' зберігаються обробником переривань ROM і безпечні для використання з увімкненими перериваннями. Якщо твій код перевикористовує IY, спочатку заборони переривання (`DI`) або перейди на IM2 зі своїм обробником.
 
 ### Зв'язки регістрових пар з інструкціями
 
@@ -652,17 +652,17 @@ iterate_screen:
 
 Для рішень у внутрішніх циклах ці порівняння найважливіші:
 
-| Operation | Slow way | Fast way | Savings |
-|-----------|----------|----------|---------|
-| Zero A | `LD A,0` (7T, 2B) | `XOR A` (4T, 1B) | 3T, 1B |
-| Test A=0 | `CP 0` (7T, 2B) | `OR A` (4T, 1B) | 3T, 1B |
-| Copy 1 byte (HL)→(DE) | `LD A,(HL)`+`LD (DE),A`+`INC HL`+`INC DE` (26T, 4B) | `LDI` (16T, 2B) | 10T, 2B per byte |
-| Copy N bytes | `LDIR` (21T/byte) | N x `LDI` (16T/byte) | 24% faster, costs 2N bytes of code |
-| Fill 2 bytes | `LD (HL),A`+`INC HL` x2 (26T) | `PUSH rr` (11T) | 58% faster, needs SP hijack |
-| 8-bit loop | `DEC B`+`JR NZ` (16T, 3B) | `DJNZ` (13T, 2B) | 3T, 1B per iteration |
-| Indirect call | `CALL nn` (17T, 3B) | `RET` via render list (10T, 1B) | 7T, 2B per dispatch |
-| Register swap | `LD A,H`+`LD H,D`+`LD D,A` (12T, 3B) | `EX DE,HL` (4T, 1B) | 8T, 2B |
-| Save 6 registers | 3 x `PUSH` (33T, 3B) | `EXX` (4T, 1B) | 29T, 2B |
+| Операція | Повільний спосіб | Швидкий спосіб | Виграш |
+|----------|------------------|----------------|--------|
+| Обнулити A | `LD A,0` (7T, 2B) | `XOR A` (4T, 1B) | 3T, 1B |
+| Перевірити A=0 | `CP 0` (7T, 2B) | `OR A` (4T, 1B) | 3T, 1B |
+| Копіювати 1 байт (HL)→(DE) | `LD A,(HL)`+`LD (DE),A`+`INC HL`+`INC DE` (26T, 4B) | `LDI` (16T, 2B) | 10T, 2B на байт |
+| Копіювати N байтів | `LDIR` (21T/байт) | N x `LDI` (16T/байт) | На 24% швидше, коштує 2N байтів коду |
+| Заповнити 2 байти | `LD (HL),A`+`INC HL` x2 (26T) | `PUSH rr` (11T) | На 58% швидше, потребує перехоплення SP |
+| 8-бітний цикл | `DEC B`+`JR NZ` (16T, 3B) | `DJNZ` (13T, 2B) | 3T, 1B на ітерацію |
+| Непрямий виклик | `CALL nn` (17T, 3B) | `RET` через список рендеру (10T, 1B) | 7T, 2B на диспетчеризацію |
+| Обмін регістрів | `LD A,H`+`LD H,D`+`LD D,A` (12T, 3B) | `EX DE,HL` (4T, 1B) | 8T, 2B |
+| Зберегти 6 регістрів | 3 x `PUSH` (33T, 3B) | `EXX` (4T, 1B) | 29T, 2B |
 
 ---
 

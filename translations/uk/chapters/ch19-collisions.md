@@ -122,9 +122,9 @@ check_aabb:
 
 ![AABB collision detection test with two entities, border colour changes on overlap](../../build/screenshots/ch19_aabb_test.png)
 
-The IX/IY indexed addressing is convenient but expensive -- 19 T-states per access versus 7 for `ld a, (hl)`. For a game with 8 enemies and 7 bullets, it is acceptable. Worst case (all four tests pass, collision detected): approximately 270 T-states. Best case (first test fails): approximately 91 T-states. For 8 enemies checked against the player, the average case is about 8 x 120 = 960 T-states -- 1.3% of the Pentagon frame budget. Collisions are cheap.
+IX/IY-індексована адресація зручна, але дорога -- 19 тактів (T-state) за доступ проти 7 для `ld a, (hl)`. Для гри з 8 ворогами та 7 кулями це прийнятно. Найгірший випадок (усі чотири тести проходять, зіткнення виявлено): приблизно 270 тактів (T-state). Найкращий випадок (перший тест не пройшов): приблизно 91 такт (T-state). Для 8 ворогів, перевірених проти гравця, середній випадок -- приблизно 8 x 120 = 960 тактів (T-state) -- 1,3% бюджету кадру Pentagon. Зіткнення дешеві.
 
-**Overflow warning:** The `ADD A, (ix+13)` instructions compute `x + width` in an 8-bit register. If an entity is positioned at X=240 with width=24, the result wraps around to 8, producing incorrect comparisons. Ensure that entity positions are clamped so that `x + width` and `y + height` never exceed 255 -- typically by limiting the play area to leave a margin at the right and bottom edges. Alternatively, promote the comparison to 16-bit arithmetic at the cost of additional instructions.
+**Попередження про переповнення:** Інструкції `ADD A, (ix+13)` обчислюють `x + width` у 8-бітному регістрі. Якщо сутність розташована на X=240 з шириною=24, результат загортається до 8, породжуючи некоректні порівняння. Переконайся, що позиції сутностей обмежені так, що `x + width` та `y + height` ніколи не перевищують 255 -- зазвичай обмежуючи ігрову область із запасом біля правого та нижнього країв. Альтернативно, підвищ порівняння до 16-бітної арифметики ціною додаткових інструкцій.
 
 ### Упорядкування тестів для найшвидшого відхилення
 
@@ -559,7 +559,7 @@ update_entity_physics:
     ret
 ```
 
-The order is deliberate: forces first, then move, then collide. This is the standard for platformers. Total cost per entity: approximately 1,000-1,500 T-states (dominated by tile collision lookups at ~182T each). For 16 entities: 16,000-24,000 T-states, about 25-33% of the Pentagon frame budget. In practice, only the player and gravity-affected enemies need full tile collision checks -- bullets and effects can use simpler bounds tests.
+Порядок навмисний: спочатку сили, потім рух, потім зіткнення. Це стандарт для платформерів. Загальна вартість на сутність: приблизно 1 000--1 500 тактів (T-state) (домінують пошуки тайлових зіткнень по ~182 такти кожний). Для 16 сутностей: 16 000--24 000 тактів (T-state), приблизно 25--33% бюджету кадру Pentagon. На практиці лише гравець та вороги, на яких діє гравітація, потребують повної перевірки тайлових зіткнень -- кулі та ефекти можуть використовувати простіші перевірки меж.
 
 ---
 
@@ -700,7 +700,7 @@ ai_patrol:
 
 ### Переслідування: невблаганний переслідувач
 
-The chase behaviour is simple: compute the sign of the horizontal distance between the enemy and the player, and move in that direction.
+Поведінка переслідування проста: обчисли знак горизонтальної відстані між ворогом та гравцем і рухайся в цьому напрямку.
 
 ```z80 id:ch19_chase_the_relentless_follower
 ; ai_chase -- Move toward the player
@@ -1169,17 +1169,17 @@ check_all_collisions:
 
 ## Підсумок
 
-- **AABB collision** uses four comparisons with early exit. Most pairs are rejected after one or two tests. Cost: 91-270 T-states per pair on the Z80 (IX/IY indexed addressing dominates). Order the tests to reject the most common non-collision case first (usually horizontal). Watch for 8-bit overflow when computing `x + width` near screen edges.
-- **Tile collision** converts pixel coordinates to a tile index via right-shift and lookup. O(1) per point checked, regardless of map size. Check the four corners and edge midpoints of the entity's bounding box.
-- **Sliding collision response** resolves collisions on each axis independently. Apply X velocity then check X collisions; apply Y velocity then check Y collisions. Diagonal motion against a wall naturally becomes sliding.
-- **Gravity** is a fixed-point addition to vertical velocity every frame: `dy += gravity`. With 8.8 format, sub-pixel values like 0.25 pixels/frame^2 produce smooth, natural-feeling acceleration curves.
-- **Jumping** sets vertical velocity to a negative value. Gravity decelerates it, producing a parabolic arc with no explicit curve calculation. Variable-height jumps cut the velocity in half when the button is released.
-- **Friction** is a right-shift of horizontal velocity: `dx >>= 1`. Vary the frequency of application for different surface types (every frame = rough ground, every 4th frame = ice).
-- **Enemy AI** uses a finite state machine with JP-table dispatch. Five states (Patrol, Chase, Attack, Retreat, Death) cover most platformer enemy behaviours. Dispatch cost: ~45 T-states regardless of state count.
-- **Chase** uses the sign of `player.x - enemy.x` for direction. Two instructions, zero trigonometry.
-- **Update AI every 2nd or 3rd frame** to halve or third the CPU cost. Physics runs every frame for smooth movement; AI decisions can lag by 1-2 frames without the player noticing.
-- **Four enemy types** (Walker, Shooter, Swooper, Ambusher) demonstrate how the same state machine framework produces varied behaviours by changing a few constants and one or two state handlers.
-- **Total cost** for a 16-entity game (physics + collisions + AI): approximately 15,000-20,000 T-states per frame on the Spectrum (about 25-28% of the Pentagon budget), leaving room for rendering and sound.
+- **AABB-зіткнення** використовує чотири порівняння з раннім виходом. Більшість пар відхиляються після одного чи двох тестів. Вартість: 91--270 тактів (T-state) на пару на Z80 (домінує IX/IY-індексована адресація). Упорядкуй тести для відхилення найпоширенішого випадку без зіткнення першим (зазвичай горизонтальний). Слідкуй за 8-бітним переповненням при обчисленні `x + width` біля країв екрану.
+- **Тайлове зіткнення** перетворює піксельні координати на індекс тайла через правий зсув та пошук. O(1) на перевірену точку, незалежно від розміру карти. Перевіряй чотири кути та серединні точки країв обмежуючого прямокутника сутності.
+- **Ковзна відповідь на зіткнення** розв'язує зіткнення по кожній осі незалежно. Застосуй швидкість X, потім перевір X-зіткнення; застосуй швидкість Y, потім перевір Y-зіткнення. Діагональний рух вздовж стіни природно стає ковзанням.
+- **Гравітація** -- це додавання значення з фіксованою точкою до вертикальної швидкості кожний кадр: `dy += gravity`. У форматі 8.8 субпіксельні значення на кшталт 0,25 пікселів/кадр^2 дають плавні, природні криві прискорення.
+- **Стрибок** встановлює вертикальну швидкість у від'ємне значення. Гравітація сповільнює її, створюючи параболічну дугу без явного обчислення кривої. Стрибки змінної висоти зменшують швидкість удвічі при відпусканні кнопки.
+- **Тертя** -- це правий зсув горизонтальної швидкості: `dx >>= 1`. Варіюй частоту застосування для різних типів поверхонь (кожний кадр = шорстка земля, кожний 4-й кадр = лід).
+- **ШІ ворогів** використовує скінченний автомат з диспетчеризацією через JP-таблицю. П'ять станів (Патрулювання, Переслідування, Атака, Відступ, Смерть) покривають більшість поведінок ворогів у платформерах. Вартість диспетчеризації: ~45 тактів (T-state) незалежно від кількості станів.
+- **Переслідування** використовує знак `player.x - enemy.x` для напрямку. Дві інструкції, нуль тригонометрії.
+- **Оновлюй ШІ кожний 2-й або 3-й кадр**, щоб удвічі або втричі зменшити навантаження на процесор. Фізика працює кожний кадр для плавного руху; рішення ШІ можуть відставати на 1--2 кадри, і гравець цього не помітить.
+- **Чотири типи ворогів** (Ходун, Стрілець, Пікірувальник, Засідник) демонструють, як один і той самий фреймворк скінченного автомата породжує різноманітні поведінки зміною кількох констант та одного-двох обробників станів.
+- **Загальна вартість** для гри з 16 сутностями (фізика + зіткнення + ШІ): приблизно 15 000--20 000 тактів (T-state) на кадр на Spectrum (близько 25--28% бюджету Pentagon), залишаючи місце для рендерингу та звуку.
 
 ---
 

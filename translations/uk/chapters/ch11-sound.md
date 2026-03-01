@@ -4,7 +4,7 @@
 
 ---
 
-The AY-3-8912 is the voice of the ZX Spectrum 128K. General Instrument designed the AY-3-8910 family in 1978 as a Programmable Sound Generator (PSG) -- a single chip that could produce music and sound effects without dedicating the CPU to sound generation. Investronica first put the AY into the Spanish Spectrum 128K, Sinclair adopted the design, and by the time Amstrad inherited it for the +2/+3, the chip was already a proven workhorse: Intellivision, MSX, Atari ST, and dozens of arcade machines all used it or its pin-compatible variants (YM2149 in the Atari ST). The Spectrum 128K specifically uses the AY-3-8912, which has fewer I/O ports than the 8910 but is otherwise identical in sound capabilities.
+AY-3-8912 -- це голос ZX Spectrum 128K. General Instrument розробила сімейство AY-3-8910 у 1978 році як програмований генератор звуку (PSG) -- єдиний чип, здатний створювати музику та звукові ефекти без виділення процесора на генерацію звуку. Investronica першою встановила AY в іспанський Spectrum 128K, Sinclair перейняв дизайн, і до того часу, як Amstrad успадкував його для +2/+3, чип вже був перевіреним робочим конем: Intellivision, MSX, Atari ST та десятки аркадних автоматів використовували його або його піносумісні варіанти (YM2149 в Atari ST). Spectrum 128K конкретно використовує AY-3-8912, який має менше портів введення-виведення, ніж 8910, але в іншому ідентичний за звуковими можливостями.
 
 Чотирнадцять регістрів. Три канали прямокутних хвиль. Один генератор шуму. Один генератор обвідної. Це все, що ти маєш. Все, що ти коли-небудь чув у чіптюні ZX Spectrum 128K -- пульсуючі басові лінії, швидкострільні арпеджовані акорди, уривчасті барабани -- виникає від програмування цих чотирнадцяти регістрів п'ятдесят разів на секунду.
 
@@ -365,20 +365,20 @@ natural_note_table:
 
 Ключовий момент у тому, що більшість періодів основної гами тепер діляться на 16. Ось друга октава -- басовий діапазон, який найбільш важливий для buzz:
 
-| Note | Period | mod 16 | Envelope = Period/16 | Clean? |
-|------|--------|--------|----------------------|--------|
-| C2   | 1440   | 0      | 90                   | Yes |
-| C#2  | 1350   | 6      | 84.375 → 84          | No  |
-| D2   | 1280   | 0      | 80                   | Yes |
-| D#2  | 1200   | 0      | 75                   | Yes |
-| E2   | 1152   | 0      | 72                   | Yes |
-| F2   | 1080   | 8      | 67.5 → 68            | ~   |
-| F#2  | 1013   | 5      | 63.3 → 63            | No  |
-| G2   |  960   | 0      | 60                   | Yes |
-| G#2  |  900   | 4      | 56.25 → 56           | No  |
-| A2   |  864   | 0      | 54                   | Yes |
-| A#2  |  810   | 10     | 50.6 → 51            | No  |
-| B2   |  768   | 0      | 48                   | Yes |
+| Нота | Період | mod 16 | Обвідна = Період/16 | Чисто? |
+|------|--------|--------|---------------------|--------|
+| C2   | 1440   | 0      | 90                  | Так |
+| C#2  | 1350   | 6      | 84,375 → 84         | Ні  |
+| D2   | 1280   | 0      | 80                  | Так |
+| D#2  | 1200   | 0      | 75                  | Так |
+| E2   | 1152   | 0      | 72                  | Так |
+| F2   | 1080   | 8      | 67,5 → 68           | ~   |
+| F#2  | 1013   | 5      | 63,3 → 63           | Ні  |
+| G2   |  960   | 0      | 60                  | Так |
+| G#2  |  900   | 4      | 56,25 → 56          | Ні  |
+| A2   |  864   | 0      | 54                  | Так |
+| A#2  |  810   | 10     | 50,6 → 51           | Ні  |
+| B2   |  768   | 0      | 48                  | Так |
 
 Сім з дванадцяти нот діляться чисто -- всі натуральні ноти до-мажору. Порівняй з рівномірно темперованою таблицею, де *жодна* не ділиться. На цих семи нотах генератори обвідної та тону синхронізуються по фазі, і buzz-bass звучить чисто.
 
@@ -553,7 +553,7 @@ music_frame:
     ret
 ```
 
-The register write loop writes all 14 registers from a buffer in RAM. For two chips, you maintain two 14-byte buffers and blast them out sequentially. Each register write requires selecting the register (LD A,reg + OUT) then writing the value (LD A,val + OUT), costing about 36 T-states per register. For 28 registers total: approximately 1,008 T-states, plus chip selection overhead.
+Цикл запису регістрів записує всі 14 регістрів з буфера в RAM. Для двох чипів ти підтримуєш два 14-байтних буфери і відправляєш їх послідовно. Кожний запис регістра вимагає вибору регістра (LD A,reg + OUT), потім запису значення (LD A,val + OUT), що коштує приблизно 36 тактів (T-state) на регістр. Для 28 регістрів загалом: приблизно 1 008 тактів (T-state), плюс накладні витрати на вибір чипа.
 
 ---
 
@@ -929,7 +929,7 @@ sfx_pickup:
 
 ## Підсумок
 
-The AY-3-8910 is simple on paper: 14 registers, 3 channels, basic waveforms. But the gap between "simple" and "limited" is filled by technique. Arpeggios fake chords. Envelope abuse creates bass. Noise shaping synthesizes drums. Ornaments breathe life into static tones. And when three channels are genuinely not enough, TurboSound doubles them and the Next triples them.
+AY-3-8910 простий на папері: 14 регістрів, 3 канали, базові форми хвиль. Але прогалину між "простий" і "обмежений" заповнює техніка. Арпеджіо імітують акорди. Зловживання обвідною створює бас. Формування шуму синтезує барабани. Орнаменти вдихають життя в статичні тони. А коли трьох каналів дійсно не вистачає, TurboSound подвоює їх, а Next потроює.
 
 Архітектурний патерн однаковий для всіх конфігурацій: переривання спрацьовує 50 разів на секунду, процедура програвача читає паттерн-дані та обчислює значення регістрів, і ці значення відправляються на AY у тісному циклі. Незалежно від того, пишеш ти власний програвач чи інтегруєш Vortex Tracker, потік той самий. Розуміння регістрів означає розуміння звуку.
 

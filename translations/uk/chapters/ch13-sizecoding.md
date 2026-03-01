@@ -5,7 +5,7 @@
 
 Існує категорія змагань на демосцені, де обмеженням є не час, а *простір*. Вся твоя програма -- код, що малює екран, створює звук, обробляє кадровий цикл, зберігає будь-які потрібні дані -- повинна вміститися у 256 байт. Або 512. Або 1K, або 4K, або 8K. Жодного байта більше. Файл вимірюється, і якщо він 257 байт, його дискваліфіковано.
 
-These are **size-coding** competitions, and they produce some of the most remarkable work on the ZX Spectrum scene. A 256-byte intro that fills the screen with animated patterns and plays a recognisable melody is a form of compression so extreme it is hard to believe until you read the code. The gap between what the audience sees and the file size that produces it -- that gap is the art.
+Це змагання з **size-coding**, і вони породжують одні з найвражаючих робіт на сцені ZX Spectrum. 256-байтне інтро, що заповнює екран анімованими патернами та грає впізнавану мелодію, -- це форма стиснення настільки екстремальна, що важко повірити, поки не прочитаєш код. Розрив між тим, що бачить глядач, і розміром файлу, що це породжує, -- цей розрив і є мистецтвом.
 
 Цей розділ про мислення, техніки та конкретні трюки, що роблять sizecoding можливим.
 
@@ -41,39 +41,39 @@ UriS, який написав 256-байтне інтро NHBF для Chaos Cons
 
 - **Самомодифікований код (SMC) -- не трюк, а необхідність.** Коли ти не можеш дозволити собі окрему змінну, ти модифікуєш операнд інструкції на місці.
 
-### The Z80 Size-Coder's Toolkit
+### Набір інструментів кодера розміру Z80
 
-Some tricks recur so often in size-coded intros that they form a shared vocabulary. Knowing these by heart -- their byte costs, their side effects -- is the prerequisite to serious size-coding.
+Деякі трюки повторюються в інтро з обмеженням розміру настільки часто, що утворюють спільний словник. Знати їх напам'ять -- їхню вартість у байтах, їхні побічні ефекти -- це передумова для серйозного sizecoding.
 
-**Register initialization assumptions.** When a Spectrum program launches from BASIC (via `RANDOMIZE USR`), the CPU state is not random. After `CLEAR` and before the USR call, A is typically 0, BC holds the USR address, DE and HL have known values from the BASIC interpreter, the stack pointer sits at the CLEAR address, and interrupts are enabled. Many of these are stable enough to rely on. If your program needs A = 0 at the start, do not write `XOR A` -- it is already zero. If you need a 16-bit counter starting at 0, check whether DE or HL already holds 0 or a useful value. One byte saved here, two bytes saved there -- these add up to the difference between 260 bytes and 256.
+**Припущення про ініціалізацію регістрів.** Коли програма Spectrum запускається з BASIC (через `RANDOMIZE USR`), стан процесора не випадковий. Після `CLEAR` і перед викликом USR, A зазвичай дорівнює 0, BC містить адресу USR, DE та HL мають відомі значення з інтерпретатора BASIC, вказівник стеку стоїть на адресі CLEAR, і переривання увімкнені. Багато з цих значень достатньо стабільні, щоб на них покладатися. Якщо твоїй програмі потрібен A = 0 на старті, не пиши `XOR A` -- він вже нульовий. Якщо потрібен 16-бітний лічильник від 0, перевір, чи DE або HL вже не містить 0 або корисне значення. Один байт тут, два байти там -- і вони сумуються у різницю між 260 і 256 байтами.
 
-The system variables area ($5C00-$5CB5) is another source of free data. The BASIC interpreter maintains over 100 bytes of state at known addresses. If you need the value 2, you might find it at the address holding the current stream number. If you need $FF, several system variable fields contain it. Reading from a fixed address costs 3 bytes (`LD A, (nn)`), but if it replaces a 2-byte load *plus* some computation, you come out ahead.
+Область системних змінних ($5C00-$5CB5) -- ще одне джерело безкоштовних даних. Інтерпретатор BASIC підтримує понад 100 байт стану за відомими адресами. Якщо тобі потрібне значення 2, ти можеш знайти його за адресою, що зберігає номер поточного потоку. Якщо потрібен $FF, кілька полів системних змінних містять його. Зчитування з фіксованої адреси коштує 3 байти (`LD A, (nn)`), але якщо воно замінює 2-байтне завантаження *плюс* якісь обчислення, ти виграєш.
 
-**DJNZ as a short backwards jump.** `DJNZ label` is 2 bytes, same as `JR label` -- but it also decrements B. If B is nonzero and you need a backwards jump, `DJNZ` does both for free. Even when you do not care about B's decrement, `DJNZ` is still 2 bytes, the same cost as `JR`. But if B happens to reach zero at the exact moment you want to fall through, you have merged a loop counter and a branch into a single instruction. Size-coders routinely structure loops so that B's natural countdown aligns with the exit condition.
+**DJNZ як короткий зворотний перехід.** `DJNZ label` -- це 2 байти, стільки ж, скільки `JR label` -- але він також декрементує B. Якщо B ненульовий і тобі потрібен зворотний перехід, `DJNZ` робить і те, і інше безкоштовно. Навіть коли тебе не цікавить декремент B, `DJNZ` все одно 2 байти, та сама вартість, що й `JR`. Але якщо B стає нулем саме в той момент, коли ти хочеш провалитися далі, ти об'єднав лічильник циклу та перехід в одну інструкцію. Кодери розміру систематично структурують цикли так, щоб природний зворотний відлік B збігався з умовою виходу.
 
-**RST as a 1-byte CALL.** The Z80 reserves eight restart addresses: $00, $08, $10, $18, $20, $28, $30, $38. `RST n` pushes the return address and jumps to the target -- the same as `CALL n` -- but in 1 byte instead of 3. On the Spectrum, the ROM places useful routines at several of these addresses:
+**RST як 1-байтний CALL.** Z80 резервує вісім адрес перезапуску: $00, $08, $10, $18, $20, $28, $30, $38. `RST n` зберігає адресу повернення і переходить на цільову адресу -- те саме, що `CALL n` -- але за 1 байт замість 3. На Spectrum ROM розміщує корисні підпрограми за кількома з цих адрес:
 
-- `RST $10` -- print a character (ROM routine at $0010)
-- `RST $20` -- collect next character from BASIC (less useful for demos)
-- `RST $28` -- enter the floating-point calculator (useful for math)
-- `RST $38` -- the maskable interrupt handler (IM 1 jumps here)
+- `RST $10` -- друк символу (ROM-підпрограма за $0010)
+- `RST $20` -- зчитування наступного символу з BASIC (менш корисний для демо)
+- `RST $28` -- вхід у калькулятор з рухомою точкою (корисний для математики)
+- `RST $38` -- обробник маскованих переривань (IM 1 переходить сюди)
 
-In a normal demo, these ROM routines are too slow to call in a tight loop. In a 256-byte intro, saving 2 bytes per call is worth the speed penalty. If your program calls `RST $10` six times to print characters, that is 12 bytes saved over six `CALL $0010` instructions. Twelve bytes is nearly 5% of 256.
+У звичайному демо ці ROM-підпрограми занадто повільні для виклику в тісному циклі. У 256-байтному інтро економія 2 байт на виклик вартує штрафу в швидкості. Якщо твоя програма викликає `RST $10` шість разів для друку символів, це 12 збережених байт порівняно з шістьма інструкціями `CALL $0010`. Дванадцять байт -- це майже 5% від 256.
 
-**Overlapping instructions.** The Z80 decodes instructions byte by byte, with no alignment requirements. If you jump into the middle of a multi-byte instruction, the CPU decodes fresh from that point. This means you can hide one instruction inside another:
+**Перекриття інструкцій.** Z80 декодує інструкції байт за байтом, без вимог вирівнювання. Якщо перестрибнути в середину багатобайтної інструкції, процесор декодує наново з цієї точки. Це означає, що можна сховати одну інструкцію всередині іншої:
 
 ```z80 id:ch13_the_z80_size_coder_s_toolkit
     ld   a, $AF              ; opcode $3E, operand $AF
                               ; BUT: $AF is XOR A
 ```
 
-If the CPU executes from the start, it sees `LD A, $AF` (2 bytes). If another code path jumps to the second byte, it sees `XOR A` (1 byte). One byte serves two purposes. The technique is fragile -- it demands perfect control of all execution paths -- but in competition code, fragility is acceptable.
+Якщо процесор виконує з початку, він бачить `LD A, $AF` (2 байти). Якщо інший шлях коду перестрибує на другий байт, він бачить `XOR A` (1 байт). Один байт виконує дві функції. Техніка крихка -- вона вимагає ідеального контролю над усіма шляхами виконання -- але в конкурсному коді крихкість прийнятна.
 
-A common pattern: the byte `$18` is `JR d` (relative jump). If you need the value $18 as data *and* need a branch at that location, the same byte does both. The operand that follows is both the jump offset and (from another perspective) the next piece of data.
+Поширений патерн: байт `$18` -- це `JR d` (відносний перехід). Якщо тобі потрібне значення $18 як дані *і* потрібен перехід у цьому місці, той самий байт робить і те, і інше. Операнд, що слідує за ним, одночасно є зсувом переходу і (з іншої точки зору) наступним фрагментом даних.
 
-**Abusing flag state.** Every arithmetic and logical instruction sets flags. Size-coders memorise which flags each instruction affects and exploit the results instead of computing them separately. After `DEC B`, the zero flag tells you whether B hit zero -- no `CP 0` needed. After `ADD A, n`, the carry flag tells you whether the result overflowed past 255. After `AND mask`, the zero flag tells you whether any masked bits were set.
+**Зловживання станом прапорців.** Кожна арифметична і логічна інструкція встановлює прапорці. Кодери розміру запам'ятовують, на які прапорці впливає кожна інструкція, і використовують результати замість окремих обчислень. Після `DEC B` прапорець нуля каже, чи B досяг нуля -- `CP 0` не потрібен. Після `ADD A, n` прапорець перенесення каже, чи результат переповнив 255. Після `AND mask` прапорець нуля каже, чи були встановлені якісь замасковані біти.
 
-The deepest flag trick is `SBC A, A`: if carry is set, A becomes $FF; if carry is clear, A becomes $00. One byte, no branch, a full bitmask from a flag. Compare this to the branching alternative:
+Найглибший трюк з прапорцями -- `SBC A, A`: якщо перенесення встановлено, A стає $FF; якщо ні, A стає $00. Один байт, жодного розгалуження, повна бітова маска з прапорця. Порівняй з альтернативою на розгалуженнях:
 
 ```z80 id:ch13_the_z80_size_coder_s_toolkit_2
     ; With branching: 6 bytes
@@ -88,7 +88,7 @@ The deepest flag trick is `SBC A, A`: if carry is set, A becomes $FF; if carry i
     sbc  a, a                 ; 1 — carry -> $FF, no carry -> $00
 ```
 
-Five bytes saved. In a 256-byte intro, that is two percent of the entire program.
+П'ять байт збережено. У 256-байтному інтро це два відсотки всієї програми.
 
 ---
 
@@ -116,27 +116,27 @@ UriS описує ключовий процес як постійне перет
 
 Такий серендипний збіг -- серце кодування на 256 байтах. Ти не можеш його спланувати. Ти можеш лише створити умови, за яких він може статися, постійно перетасовуючи код і стежачи за випадковими збігами. Коли знаходиш такий -- це відчувається як відкриття, що два елементи пазла з різних наборів ідеально з'єднуються.
 
-### The Byte Budget
+### Бюджет байтів
 
-When working at 256 bytes, a rough budget helps you plan before writing a single instruction. Here is a realistic breakdown for a typical ZX Spectrum 256-byte intro with both visuals and sound:
+Коли працюєш на 256 байтах, приблизний бюджет допомагає планувати до написання першої інструкції. Ось реалістична розкладка для типового 256-байтного інтро на ZX Spectrum з візуальною частиною та звуком:
 
-| Component | Bytes | Notes |
-|-----------|-------|-------|
-| Pixel fill (dither/clear) | 18-25 | LD HL, LDIR or a compact fill loop |
-| AY initialisation | 16-22 | Mixer, volume, initial tone — via port writes |
-| Main loop frame sync | 1 | HALT |
-| AY tone update per frame | 10-14 | Select register, write tone period |
-| Visual effect core | 30-50 | The inner loop that computes and writes attributes |
-| Outer loop / row control | 8-12 | Row counter, column counter, branches |
-| Frame counter update (SMC) | 6-8 | Read, increment, write back into instruction |
-| Loop back to main | 2 | JR main_loop |
-| **Total framework** | **~91-134** | Before any effect-specific code |
+| Компонент | Байти | Примітки |
+|-----------|-------|----------|
+| Заповнення пікселів (дизеринг/очищення) | 18-25 | LD HL, LDIR або компактний цикл заповнення |
+| Ініціалізація AY | 16-22 | Мікшер, гучність, початковий тон -- через записи портів |
+| Синхронізація кадрів головного циклу | 1 | HALT |
+| Оновлення тону AY на кадр | 10-14 | Вибір регістра, запис періоду тону |
+| Ядро візуального ефекту | 30-50 | Внутрішній цикл, що обчислює та записує атрибути |
+| Зовнішній цикл / керування рядками | 8-12 | Лічильник рядків, лічильник стовпців, переходи |
+| Оновлення лічильника кадрів (SMC) | 6-8 | Зчитай, інкрементуй, запиши назад в інструкцію |
+| Повернення на початок циклу | 2 | JR main_loop |
+| **Загальний каркас** | **~91-134** | До будь-якого коду, специфічного для ефекту |
 
-That leaves 122-165 bytes for the actual creative content -- the visual formula, data tables, extra sound logic, text strings, or anything else that makes the intro *yours*. The framework is expensive. This is why size-coders fight so hard for every byte in the scaffolding: each byte saved in the framework is a byte gained for art.
+Це залишає 122-165 байт для власне творчого вмісту -- візуальної формули, таблиць даних, додаткової звукової логіки, текстових рядків або будь-чого іншого, що робить інтро *твоїм*. Каркас дорогий. Саме тому кодери розміру так борються за кожен байт у риштуванні: кожен байт, збережений у каркасі, -- це байт, здобутий для мистецтва.
 
-Look at the companion example `intro256.a80`. Its pixel fill loop uses 18 bytes. The AY setup takes 20 bytes. The main loop framework (HALT, frame counter read, border update) is 8 bytes. The AY tone update is 13 bytes. The visual effect -- a Moire interference pattern computed purely from register arithmetic -- consumes 36 bytes. The frame counter writeback and loop jump take 8 bytes. Total: around 103 bytes of framework and 36 bytes of effect. That ratio -- roughly 3:1 framework to effect -- is typical. The better you compress the framework, the more room you have for creative expression.
+Подивись на приклад-компаньйон `intro256.a80`. Його цикл заповнення пікселів використовує 18 байт. Налаштування AY займає 20 байт. Каркас головного циклу (HALT, зчитування лічильника кадрів, оновлення бордюру) -- 8 байт. Оновлення тону AY -- 13 байт. Візуальний ефект -- патерн інтерференції Муара, обчислений суто з регістрової арифметики -- споживає 36 байт. Зворотний запис лічильника кадрів і перехід циклу займають 8 байт. Усього: приблизно 103 байти каркасу і 36 байт ефекту. Це співвідношення -- приблизно 3:1 каркас до ефекту -- типове. Чим краще ти стискаєш каркас, тим більше місця залишається для творчого самовираження.
 
-![Output of a 256-byte intro -- animated Moire interference pattern with colour cycling, generated entirely from register arithmetic](../../build/screenshots/ch13_intro256.png)
+![Вивід 256-байтного інтро -- анімований інтерференційний патерн Муара зі зміною кольорів, згенерований суто з регістрової арифметики](../../build/screenshots/ch13_intro256.png)
 
 ### Ключові техніки на 256 байтах
 
@@ -163,21 +163,21 @@ Look at the companion example `intro256.a80`. Its pixel fill loop uses 18 bytes.
 
 ---
 
-## 13.3 Famous 256-Byte Intros: What Made Them Clever
+## 13.3 Відомі 256-байтні інтро: Що робило їх розумними
 
-The ZX Spectrum 256-byte category has a rich history. Studying winning entries reveals what kinds of effects fit into 256 bytes and which creative strategies succeed.
+Категорія 256 байт на ZX Spectrum має багату історію. Вивчення переможних робіт показує, які ефекти вміщуються у 256 байт і які творчі стратегії спрацьовують.
 
-**Attribute-based effects dominate.** The reason is arithmetic: the Spectrum's attribute area is 768 bytes (32 x 24), and you can fill it with a computed pattern using a tight nested loop of 15-20 bytes. Pixel-level effects require addressing 6,144 bytes of interleaved screen memory -- much more code for address calculation alone. At 256 bytes, you simply cannot afford the overhead. So the vast majority of 256-byte intros work in attribute space: colour plasmas, interference patterns, gradient animations, colour cycling. The pixel memory either stays blank, gets a one-time dither fill, or is left with whatever the ROM puts there.
+**Ефекти на атрибутах домінують.** Причина арифметична: область атрибутів Spectrum -- 768 байт (32 x 24), і заповнити її обчисленим патерном можна за допомогою тісного вкладеного циклу з 15-20 байт. Піксельні ефекти вимагають адресації 6 144 байт черезрядкової екранної пам'яті -- значно більше коду тільки на обчислення адрес. На 256 байтах ти просто не можеш дозволити собі таких накладних витрат. Тому переважна більшість 256-байтних інтро працюють у просторі атрибутів: кольорові плазми, інтерференційні патерни, градієнтні анімації, зміна кольорів. Піксельна пам'ять або залишається порожньою, отримує одноразове заповнення дизерингом, або зберігає те, що туди записав ROM.
 
-**Generative sound beats sequenced sound.** A note table for a melody costs bytes -- even a simple 8-note sequence is 8 bytes, plus the indexing logic. At 256 bytes, the winning strategy is to derive sound from the effect state. Use the frame counter as a tone period (pitch sweeps continuously). Use a byte from the visual computation as a noise parameter. Or use `LD A, R` -- read the Z80's refresh register, which increments on every instruction fetch -- as a pseudo-random source, then mask it to a pentatonic range. The sound will not be a composition, but it will be *present*, and the audience will remember "that tiny intro that had music."
+**Генеративний звук перемагає секвенсований.** Таблиця нот для мелодії коштує байтів -- навіть проста 8-нотна послідовність це 8 байт плюс логіка індексації. На 256 байтах виграшна стратегія -- виводити звук зі стану ефекту. Використовуй лічильник кадрів як період тону (висота безперервно ковзає). Використовуй байт з візуального обчислення як параметр шуму. Або використовуй `LD A, R` -- зчитування регістра оновлення Z80, що інкрементується при кожній вибірці інструкції -- як псевдовипадкове джерело, потім замаскуй до пентатонічного діапазону. Звук не буде композицією, але він буде *присутнім*, і глядач запам'ятає "те крихітне інтро, в якому була музика."
 
-**The ROM is your library.** Every byte of the Spectrum's 16K ROM is available and does not count against your size limit. `RST $10` prints characters using the ROM's full font rendering -- 96 printable characters, 8x8 pixels each, with cursor management. That is thousands of bytes of rendering code available for 1 byte per call. `RST $28` accesses the floating-point calculator, which can compute sine, cosine, and square roots -- operations that would cost dozens of bytes to implement. The cost is speed (the ROM routines are slow), but in a 256-byte intro running at 50fps with a simple effect, you often have cycles to spare.
+**ROM -- твоя бібліотека.** Кожен байт 16-КБ ROM Spectrum доступний і не враховується у твоєму ліміті розміру. `RST $10` друкує символи, використовуючи повний рендеринг шрифтів ROM -- 96 друкованих символів, 8x8 пікселів кожний, з керуванням курсором. Це тисячі байт коду рендерингу, доступних за 1 байт на виклик. `RST $28` надає доступ до калькулятора з рухомою точкою, що може обчислювати синус, косинус і квадратні корені -- операції, реалізація яких коштувала б десятки байт. Ціна -- швидкість (ROM-підпрограми повільні), але у 256-байтному інтро на 50fps з простим ефектом циклів часто вистачає.
 
-**The entries that win are the ones that look impossible at their size.** Judges and audiences react to the gap between perceived complexity and file size. A 256-byte intro with a smooth colour plasma and a recognisable melody generates more applause than one with a slightly better visual but no sound. The trick is choosing an effect that *looks* complex but *encodes* cheaply. XOR-based interference patterns are perfect: visually intricate, mathematically trivial. Colour cycling through attributes is another: the eye perceives motion and depth, but the code is just incrementing values in a loop. Diagonal scrolling patterns, checkerboard animations, expanding rings -- all can be produced with fewer than 20 bytes of inner-loop code if the formula is chosen carefully.
+**Перемагають ті роботи, що виглядають неможливими при своєму розмірі.** Журі та глядачі реагують на розрив між сприйнятою складністю та розміром файлу. 256-байтне інтро з плавною кольоровою плазмою та впізнаваною мелодією викликає більше захоплення, ніж інтро з трохи кращою візуальною частиною, але без звуку. Трюк у тому, щоб обрати ефект, який *виглядає* складним, але *кодується* дешево. Інтерференційні патерни на основі XOR ідеальні: візуально вишукані, математично тривіальні. Зміна кольорів через атрибути -- ще один приклад: око сприймає рух і глибину, а код просто інкрементує значення в циклі. Діагональні скролінгові патерни, шахматні анімації, розширюючі кільця -- все це можна створити менш ніж за 20 байт коду внутрішнього циклу, якщо формулу обрано ретельно.
 
 ---
 
-## 13.4 The LPRINT Trick
+## 13.4 Трюк з LPRINT
 
 У 2015 році diver4d опублікував "Secrets of LPRINT" на Hype, документуючи техніку, старішу за саму демосцену -- таку, що вперше з'явилася у піратських завантажувачах касетного ПЗ у 1980-х.
 
@@ -209,23 +209,23 @@ LPRINT забезпечує складне виведення на екран п
 
 ---
 
-## 13.5 512-Byte Intros: Room to Breathe
+## 13.5 512-байтні інтро: Простір для дихання
 
 Подвоєння від 256 до 512 байт -- це не вдвічі більше, а якісно інше. На 256 ти борешся за кожну інструкцію і звук мінімальний. На 512 ти можеш мати повноцінний ефект *і* повноцінний звук, або два ефекти з переходом.
 
-### What Each Size Tier Enables
+### Що відкриває кожен рівень розміру
 
-The jump between size categories is not linear. Each doubling opens qualitative new possibilities:
+Перехід між категоріями розміру не лінійний. Кожне подвоєння відкриває якісно нові можливості:
 
-**256 bytes** is one effect and maybe primitive sound. You cannot afford a data table longer than about 16 bytes. Every variable lives in a register or in the instruction stream (self-modifying code). Text output is limited to a few characters. You have room for one nested loop with 2-3 arithmetic operations in the inner body. The visual will be attribute-based, generated purely from arithmetic. Sound, if present, is a tone sweep or random notes.
+**256 байт** -- це один ефект і, можливо, примітивний звук. Ти не можеш дозволити собі таблицю даних довше приблизно 16 байт. Кожна змінна живе в регістрі або в потоці інструкцій (самомодифікований код). Текстовий вивід обмежений кількома символами. У тебе є місце для одного вкладеного циклу з 2-3 арифметичними операціями у внутрішньому тілі. Візуальна частина буде на атрибутах, згенерована суто арифметикою. Звук, якщо присутній, -- це розгортка тону або випадкові ноти.
 
-**512 bytes** lets you add a sine table (32-64 bytes), a real AY music engine (melody + bass on two channels), or a second visual effect with a transition. You can afford a proper frame-counted state machine that switches between two parts. Self-modifying code becomes structural rather than desperate. You might even have room for a short text string (10-20 characters) displayed with `RST $10`.
+**512 байт** дозволяють додати синусну таблицю (32-64 байти), справжній музичний рушій AY (мелодія + бас на двох каналах), або другий візуальний ефект з переходом. Ти можеш дозволити собі належний скінченний автомат з підрахунком кадрів, що перемикається між двома частинами. Самомодифікований код стає структурним, а не відчайдушним. Може навіть вистачити місця для короткого текстового рядка (10-20 символів), виведеного через `RST $10`.
 
-**1K (1,024 bytes)** is a different world. You can have a tracker-style music player with a compressed pattern (one channel with a 32-step loop takes about 80-120 bytes including the player). Multiple effects with transitions become standard. Pixel-level effects -- simple plasma in pixel space, scrolling text, raster bars -- become feasible because you can afford the screen memory address calculation. You can include a 256-byte sine table, or generate one at startup and keep it in a buffer. At 1K, the constraint still shapes every decision, but the decisions are about *which features to include*, not about *which instructions you can afford*.
+**1K (1 024 байти)** -- це інший світ. Можна мати музичний програвач у стилі трекера зі стиснутим патерном (один канал із 32-кроковим циклом займає приблизно 80-120 байт включно з програвачем). Кілька ефектів з переходами стають нормою. Піксельні ефекти -- проста плазма в піксельному просторі, скролінг тексту, растрові смуги -- стають здійсненними, бо ти можеш дозволити собі обчислення адрес екранної пам'яті. Можна включити 256-байтну синусну таблицю, або згенерувати її при запуску і тримати в буфері. На 1K обмеження все ще формує кожне рішення, але рішення стосуються того, *які можливості включити*, а не *які інструкції ти можеш собі дозволити*.
 
-**4K and 8K** intros approach the territory of short demos. At 4K, compression becomes viable and you can fit multi-effect compositions with music -- a qualitative leap covered in Section 13.6. An 8K intro is a polished mini-demo where the constraint is more about data compression than instruction-level size tricks. The techniques from this chapter still apply, but the focus shifts from "can I save one byte?" to "can I compress this data stream?"
+**4K та 8K** інтро наближаються до території коротких демо. На 4K стиснення стає життєздатним, і можна вмістити багатоефектні композиції з музикою -- якісний стрибок, розглянутий у Секції 13.6. 8K інтро -- це відполіроване міні-демо, де обмеження стосується більше стиснення даних, ніж трюків з розміром на рівні інструкцій. Техніки з цього розділу все ще застосовні, але фокус зміщується з "чи можу я зберегти один байт?" на "чи можу я стиснути цей потік даних?"
 
-The sweet spot for learning size-coding is 256 bytes. At that size, every technique in this chapter is mandatory. At 512, you have enough room to choose. At 1K, the size-coding mindset helps but does not dominate.
+Найкраща точка для вивчення sizecoding -- 256 байт. На цьому розмірі кожна техніка з цього розділу обов'язкова. На 512 місця вистачає для вибору. На 1K мислення кодера розміру допомагає, але не домінує.
 
 ### Поширені 512-байтні патерни
 
@@ -268,27 +268,27 @@ effect_1:
 
 ---
 
-## 13.6 4K Intros: The Mini-Demo
+## 13.6 4K інтро: Міні-демо
 
-4096 bytes is where size-coding transitions from "one trick" to "mini-demo." At 256 bytes, you have room for a single effect and maybe primitive sound. At 512 or 1K, you can have a proper effect with music. At 4K, you can have multiple effects, transitions between them, a full soundtrack, and a coherent narrative arc. The difference between 1K and 4K is qualitative, not just quantitative -- it is the difference between "clever trick" and "tiny production."
+4096 байт -- це точка, де sizecoding переходить від "одного трюку" до "міні-демо." На 256 байтах у тебе є місце для одного ефекту і, можливо, примітивного звуку. На 512 або 1K можна мати повноцінний ефект з музикою. На 4K можна мати кілька ефектів, переходи між ними, повний саундтрек і цілісну наративну арку. Різниця між 1K і 4K якісна, а не лише кількісна -- це різниця між "розумним трюком" і "крихітною продукцією."
 
-### Compression Becomes Viable
+### Стиснення стає життєздатним
 
-The single biggest change at 4K is that data compression pays for itself. A good Z80 decompressor -- ZX0, Exomizer, or similar -- costs roughly 150-200 bytes of code. At 256 or 512 bytes, that overhead is catastrophic. At 4K, it is less than 5% of your budget, and the return is enormous: a 4K intro might contain 6-8K of uncompressed code and data, packed down to fit the limit. Your actual working space nearly doubles.
+Найбільша зміна на 4K -- стиснення даних окуповується. Хороший розпаковувач Z80 -- ZX0, Exomizer або подібний -- коштує приблизно 150-200 байт коду. На 256 або 512 байтах ці накладні витрати катастрофічні. На 4K це менше 5% твого бюджету, а віддача величезна: 4K інтро може містити 6-8K нестисненого коду та даних, запакованих для вміщення у ліміт. Твій фактичний робочий простір майже подвоюється.
 
-The workflow becomes a feedback loop: write code, assemble to a raw binary, compress with ZX0, check the output size, iterate. The number that matters is no longer the assembled size -- it is the *compressed* size. This changes your optimisation strategy. You are no longer counting individual instruction bytes. You are thinking about what compresses well.
+Робочий процес стає циклом зворотного зв'язку: пиши код, асемблюй у сирий бінарник, стискай ZX0, перевіряй розмір виходу, ітеруй. Число, яке має значення, -- більше не розмір після асемблювання -- а *стиснений* розмір. Це змінює стратегію оптимізації. Ти більше не рахуєш байти окремих інструкцій. Ти думаєш про те, що добре стискається.
 
-Code with repetitive patterns compresses better than code with high entropy. A table of sine values compresses well (smooth, predictable). A table of random bytes does not. Effect code that reuses similar instruction sequences across routines compresses better than code where every routine has a unique structure. This is a subtle shift: you optimise not just for *small code* but for *compressible code*.
+Код з повторюваними патернами стискається краще за код з високою ентропією. Таблиця синусних значень стискається добре (плавна, передбачувана). Таблиця випадкових байтів -- ні. Код ефекту, що перевикористовує подібні послідовності інструкцій між підпрограмами, стискається краще за код, де кожна підпрограма має унікальну структуру. Це тонкий зсув: ти оптимізуєш не лише для *малого коду*, а для *стисненного коду*.
 
-### Music Fits
+### Музика вміщується
 
-At 256 bytes, sound is a luxury -- a tone sweep or random pentatonic notes. At 4K, you can have a real soundtrack. A tiny AY player engine -- something like Beepola's output or a custom minimal tracker -- takes 200-400 bytes. Add 500-1000 bytes of pattern data (compressed) and you have a full three-channel AY composition with melody, bass, and drums. These numbers compress well because music pattern data is highly repetitive.
+На 256 байтах звук -- розкіш -- розгортка тону або випадкові пентатонічні ноти. На 4K можна мати справжній саундтрек. Крихітний програвач AY -- щось на кшталт виходу Beepola або мінімального трекера на замовлення -- займає 200-400 байт. Додай 500-1000 байт патернових даних (стиснених), і ти маєш повну трьохканальну AY-композицію з мелодією, басом і барабанами. Ці числа добре стискаються, бо дані музичних патернів мають високу повторюваність.
 
-The impact on the audience is disproportionate. Sound transforms a size-coding entry from a visual curiosity into an *experience*. At compo screenings, intros with music score dramatically higher than silent ones of equal visual quality. If you have 4K to work with and you are not including music, you are leaving points on the table.
+Вплив на глядача непропорційний. Звук перетворює роботу sizecoding з візуальної курйозності на *досвід*. На показах компо інтро з музикою отримують значно вищі оцінки, ніж безмовні роботи тієї ж візуальної якості. Якщо у тебе є 4K для роботи і ти не включаєш музику, ти втрачаєш бали.
 
-### Multi-Effect Structure
+### Багатоефектна структура
 
-Unlike 256 bytes where you are locked into a single visual, 4K gives you room for 2-4 distinct effects with transitions. The structural framework is lightweight: a scene table mapping effect pointers to durations costs perhaps 30 bytes:
+На відміну від 256 байт, де ти прив'язаний до одного візуального ефекту, 4K дає місце для 2-4 окремих ефектів з переходами. Структурний каркас легкий: таблиця сцен, що відображає вказівники ефектів на тривалості, коштує приблизно 30 байт:
 
 ```z80 id:ch13_multi_effect_structure
 scene_table:
@@ -329,29 +329,29 @@ scene_runner:
     ret                 ; jump to DE via push+ret trick
 ```
 
-Each individual effect might run 500-1000 bytes of code. At 4K compressed, you can afford three substantial effects, a scene table, a music player, and transition logic (fade to black between scenes is cheap -- just zero the attribute area).
+Кожен окремий ефект може займати 500-1000 байт коду. При 4K стиснених можна дозволити собі три суттєвих ефекти, таблицю сцен, музичний програвач і логіку переходів (затемнення між сценами дешеве -- просто занули область атрибутів).
 
-### GOA4K, inal, and Megademica
+### GOA4K, inal та Megademica
 
-**GOA4K** by Exploder^XTM is a landmark ZX Spectrum 128K 4K intro that demonstrates what is achievable when compression meets clever coding. It packs a chunk rotozoomer and other effects into 4096 bytes -- visuals that would be respectable in a full-size demo, compressed down to a size you could fit in a single disk sector.
+**GOA4K** від Exploder^XTM -- це знакове 4K інтро для ZX Spectrum 128K, що демонструє, чого можна досягти, коли стиснення зустрічається з розумним кодуванням. Воно пакує чанкі-ротозумер та інші ефекти у 4096 байт -- візуальна частина, яка була б гідною повнорозмірного демо, стиснена до розміру, що вміщується в один дисковий сектор.
 
-The story does not end there. **SerzhSoft** took GOA4K and remade it as **inal** -- a 48K-only version in just 2980 bytes. The same visual impact, on a more constrained machine, in fewer bytes. This is the size-coding community at work: one coder sets a bar, another clears it from a harder starting position.
+Історія на цьому не закінчується. **SerzhSoft** взяв GOA4K і переробив його у **inal** -- версію тільки для 48K, лише у 2980 байтах. Той самий візуальний вплив, на більш обмеженій машині, у менших байтах. Так працює спільнота sizecoding: один кодер встановлює планку, інший перестрибує її з важчої стартової позиції.
 
-SerzhSoft went on to win the 4K intro compo at **Revision 2019** with **Megademica** -- competing not in a ZX-specific category, but against all platforms at the world's largest demoscene event. A ZX Spectrum 4K intro, judged alongside PC and Amiga entries, took first place. This is the trajectory that 4K size-coding enables: from local scene technique to global recognition.
+SerzhSoft продовжив і виграв компо 4K інтро на **Revision 2019** з **Megademica** -- змагаючись не в ZX-специфічній категорії, а проти всіх платформ на найбільшому демосценному заході у світі. 4K інтро на ZX Spectrum, оцінюване поряд з роботами для PC та Amiga, посіло перше місце. Ось траєкторія, яку відкриває 4K sizecoding: від локальної техніки сцени до глобального визнання.
 
-Studying entries like these reveals a pattern: the best 4K intros choose effects that are visually impressive *and* compress well, then squeeze every byte through a tight pack-test-iterate cycle.
+Вивчення таких робіт виявляє патерн: найкращі 4K інтро обирають ефекти, що вражають візуально *і* добре стискаються, а потім видавлюють кожен байт через тісний цикл пакування-тестування-ітерації.
 
-### The 4K Tradeoffs
+### Компроміси 4K
 
-Working at 4K introduces tradeoffs that do not exist at smaller sizes:
+Робота на 4K вводить компроміси, що не існують при менших розмірах:
 
-**Compression ratio drives effect choice.** Not all effects compress equally. A plasma that relies on a smooth sine table compresses beautifully -- the table data is predictable, and the rendering loop reuses similar instruction patterns. A pseudo-random dithering effect where every pixel is computed from a different formula produces high-entropy code that barely compresses at all. At 4K, you choose effects partly on their visual merit and partly on how well their implementation packs.
+**Ступінь стиснення визначає вибір ефекту.** Не всі ефекти стискаються однаково. Плазма, що покладається на плавну синусну таблицю, стискається чудово -- табличні дані передбачувані, і цикл рендерингу перевикористовує подібні послідовності інструкцій. Ефект псевдовипадкового дизерингу, де кожен піксель обчислюється за іншою формулою, породжує високоентропійний код, що майже не стискається. На 4K ти обираєш ефекти частково за їхньою візуальною привабливістю і частково за тим, наскільки добре пакується їхня реалізація.
 
-**Boot time is visible.** Decompression takes real time -- typically 1-3 seconds on a 3.5MHz Z80 for a few kilobytes of data. The audience sees a pause before the intro starts. Most 4K intros mask this with a simple loading effect: fill the border with colour cycling, draw a quick pattern in attributes, or flash a single-frame title screen. The decompressor itself runs from a small uncompressed stub at the start of the file. Once decompression finishes, the stub jumps to the unpacked code and the real show begins.
+**Час завантаження помітний.** Розпакування займає реальний час -- зазвичай 1-3 секунди на Z80 3,5 МГц для кількох кілобайт даних. Глядач бачить паузу перед стартом інтро. Більшість 4K інтро маскують це простим ефектом завантаження: заповнюють бордюр зміною кольорів, малюють швидкий патерн в атрибутах або показують одно-кадровий титульний екран. Сам розпаковувач працює з невеликого нестисненого стабу на початку файлу. Щойно розпакування завершується, стаб переходить до розпакованого коду і починається справжнє шоу.
 
-**You optimise for packed size, not runtime speed.** In a 256-byte intro, the same code that runs is the code you measure. At 4K, you write code that decompresses into RAM and then executes from there. ROM constraints disappear -- your unpacked code sits in free RAM. But the optimisation target shifts: you care about how many bytes the packed binary occupies, not the raw assembled size. An effect that assembles to 900 bytes but compresses to 400 is better than one that assembles to 600 but compresses to 500.
+**Ти оптимізуєш для запакованого розміру, а не для швидкості виконання.** У 256-байтному інтро той самий код, що виконується, -- це код, який ти вимірюєш. На 4K ти пишеш код, що розпаковується в ОЗП і потім виконується звідти. Обмеження ROM зникають -- твій розпакований код сидить у вільній ОЗП. Але ціль оптимізації зсувається: тебе хвилює, скільки байт займає запакований бінарник, а не сирий розмір після асемблювання. Ефект, що асемблюється у 900 байт, але стискається до 400, кращий за той, що асемблюється у 600, але стискається до 500.
 
-**Counting packed bytes.** The build process gains a compression step. Assemble to binary, compress with ZX0 (or your compressor of choice), check the output file size. With sjasmplus:
+**Підрахунок запакованих байтів.** Процес збірки отримує крок стиснення. Асемблюй у бінарник, стисни ZX0 (або пакувальником на свій вибір), перевір розмір вихідного файлу. З sjasmplus:
 
 ```sh
 sjasmplus --nologo --raw=build/intro4k.bin intro4k.a80
@@ -359,17 +359,17 @@ zx0 build/intro4k.bin build/intro4k.zx0
 ls -l build/intro4k.zx0    # this is the number that must be <= 4096
 ```
 
-The decompressor stub prepended to the final file must also fit within the 4096-byte limit. Total file = decompressor stub + compressed payload. A typical ZX0 decompressor is about 70 bytes in its smallest form, leaving roughly 4026 bytes for compressed data.
+Стаб розпаковувача, доданий перед фінальним файлом, також повинен вміститися у ліміт 4096 байт. Загальний файл = стаб розпаковувача + стиснений вміст. Типовий розпаковувач ZX0 займає приблизно 70 байт у найменшій формі, залишаючи приблизно 4026 байт для стиснених даних.
 
-### Competition Categories
+### Категорії змагань
 
-Demoscene parties offer various size-limited categories beyond the classic 256. Common competition tiers include 4K, 8K, and sometimes 16K, alongside the smaller 256 and 512. The specific categories vary by party -- Chaos Constructions, DiHalt, and Forever have all hosted 4K compos for the Spectrum. Some parties combine platforms (a "4K intro" compo accepting entries for any 8-bit platform), while others are Spectrum-specific. Check the party rules before starting -- the measurement method (raw file size vs. loaded memory image) and the exact byte limit matter.
+Демосценні паті пропонують різноманітні категорії з обмеженням розміру окрім класичних 256. Поширені рівні змагань включають 4K, 8K, а іноді й 16K, поряд з меншими 256 та 512. Конкретні категорії варіюються за паті -- Chaos Constructions, DiHalt та Forever проводили 4K компо для Spectrum. Деякі паті об'єднують платформи (компо "4K інтро", що приймає роботи для будь-якої 8-бітної платформи), інші специфічні для Spectrum. Перевір правила паті перед початком -- метод вимірювання (сирий розмір файлу vs. завантажений образ пам'яті) і точний ліміт у байтах мають значення.
 
-At 8K and 16K, the approach is essentially the same as 4K but with more breathing room. An 8K intro is a polished mini-demo where the compression pipeline is standard and the creative challenge is more about art direction than byte-counting. At 16K, you are essentially making a short demo that happens to fit in 16K -- the size constraint shapes your ambition but does not dictate your instruction choices. The size-coding techniques from this chapter still help at these larger budgets, but their impact is proportionally smaller.
+На 8K та 16K підхід по суті такий самий, як на 4K, але з більшим простором. 8K інтро -- це відполіроване міні-демо, де конвеєр стиснення стандартний, а творчий виклик стосується більше арт-дирекції, ніж підрахунку байтів. На 16K ти по суті робиш коротке демо, що випадково вміщується в 16K -- обмеження розміру формує твої амбіції, але не диктує вибір інструкцій. Техніки sizecoding з цього розділу все ще допомагають при цих більших бюджетах, але їхній вплив пропорційно менший.
 
 ---
 
-## 13.7 Practical: Writing a 256-Byte Intro Step by Step
+## 13.7 Практика: Написання 256-байтного інтро крок за кроком
 
 Почни з працюючої атрибутної плазми (~400 байт) і оптимізуй її до 256.
 
@@ -410,11 +410,11 @@ ay_write:                      ; register in A, value in E
 - `CALL sub : ... : RET` -> пряме проходження (економія 4 байти)
 - `PUSH AF` для тимчасових збережень проти `LD (var), A` (економія 2 байти)
 
-### Step 6: Counting Bytes Precisely
+### Крок 6: Точний підрахунок байтів
 
-Intuition about "how big is this" is unreliable. You need to count. There are three methods, and serious size-coders use all three.
+Інтуїція щодо "наскільки це велике" ненадійна. Потрібно рахувати. Є три методи, і серйозні кодери розміру використовують усі три.
 
-**Assembler output.** sjasmplus can report the assembled size. The `DISPLAY` directive prints to the console during assembly, and `ASSERT` enforces the limit:
+**Вивід асемблера.** sjasmplus може повідомити розмір після асемблювання. Директива `DISPLAY` друкує в консоль під час асемблювання, а `ASSERT` забезпечує дотримання ліміту:
 
 ```z80 id:ch13_step_6_counting_bytes
 intro_end:
@@ -422,21 +422,21 @@ intro_end:
     DISPLAY "Intro size: ", /D, intro_end - init, " bytes"
 ```
 
-Run the assembler after every change. The DISPLAY line tells you where you stand; the ASSERT catches overflows before you waste time testing a broken binary.
+Запускай асемблер після кожної зміни. Рядок DISPLAY каже, де ти знаходишся; ASSERT ловить переповнення, перш ніж ти витратиш час на тестування зламаного бінарника.
 
-**Symbol file analysis.** Assemble with `--sym=build/intro.sym` to get a symbol table. Compare label addresses to find exactly how many bytes each section occupies. When your intro is 262 bytes and you need to cut 6, the symbol file tells you that the AY init is 22 bytes (can you cut 2?), the effect loop is 38 bytes (can you merge the row and column counters?), the frame counter writeback is 8 bytes (can you restructure to make it 5?). Without this breakdown, you are guessing.
+**Аналіз файлу символів.** Асемблюй з `--sym=build/intro.sym`, щоб отримати таблицю символів. Порівнюй адреси міток, щоб знайти, скільки саме байт займає кожна секція. Коли твоє інтро 262 байти і треба скоротити 6, файл символів каже, що ініціалізація AY -- 22 байти (чи можна вирізати 2?), цикл ефекту -- 38 байт (чи можна об'єднати лічильники рядків і стовпців?), зворотний запис лічильника кадрів -- 8 байт (чи можна реструктурувати до 5?). Без такої розкладки ти гадаєш навмання.
 
-**Hex dump inspection.** After assembling, examine the raw binary in a hex editor (or `xxd build/intro.bin`). The hex dump shows you the actual bytes the CPU will execute. You will spot redundancies invisible in the source: two consecutive loads that could be one, an opcode whose value happens to match data you need elsewhere, a sequence of NOPs left by an accidental alignment. The hex dump is the ground truth. The source is an abstraction over it.
+**Інспекція шістнадцяткового дампу.** Після асемблювання дослідж сирий бінарник у hex-редакторі (або `xxd build/intro.bin`). Hex-дамп показує тобі фактичні байти, які процесор виконуватиме. Ти помітиш надмірності, невидимі у вихідному коді: два послідовних завантаження, які можна замінити одним, опкод, значення якого збігається з даними, потрібними деінде, послідовність NOP-ів, залишену випадковим вирівнюванням. Hex-дамп -- це істина. Вихідний код -- це абстракція над нею.
 
 ### Фінальний ривок
 
 Останні 10-20 байт -- найскладніші. Структурне перегрупування: зміни порядок коду так, щоб прямі переходи усували інструкції JR. Об'єднай звуковий та візуальний цикли. Вбудуй байти даних у потік інструкцій -- якщо тобі потрібен $07 як дані і також потрібен `RLCA` (опкод $07), розташуй так, щоб один слугував обома.
 
-At this stage, keep a log. Write down every change you try: "moved AY init before pixel fill: saved 2 bytes (C register reuse), lost 1 byte (need extra LD B). Net: +1 byte." Many changes do not help. Some make things worse. Without a log, you will try the same dead-end twice. With a log, you build a map of the solution space.
+На цій стадії веди журнал. Записуй кожну зміну, яку пробуєш: "перемістив ініціалізацію AY перед заповненням пікселів: зберіг 2 байти (перевикористання регістра C), втратив 1 байт (потрібен зайвий LD B). Нетто: +1 байт." Багато змін не допомагають. Деякі погіршують. Без журналу ти спробуєш той самий тупик вдруге. З журналом ти будуєш карту простору рішень.
 
-Try radical restructuring. Can the visual effect loop also update the AY? If the inner loop iterates 768 times (once per attribute cell), and you write a new tone value every 32 iterations (once per row), the sound update happens inside the visual loop at the cost of one `BIT 4, E` / `JR NZ` check -- 4 bytes to merge two routines that previously needed separate framework code. Sometimes merging saves 10 bytes; sometimes it costs 5. You will not know until you try.
+Пробуй радикальну реструктуризацію. Чи може цикл візуального ефекту також оновлювати AY? Якщо внутрішній цикл ітерує 768 разів (раз на комірку атрибутів), і ти записуєш нове значення тону кожні 32 ітерації (раз на рядок), оновлення звуку відбувається всередині візуального циклу ціною одної перевірки `BIT 4, E` / `JR NZ` -- 4 байти, щоб об'єднати дві підпрограми, яким раніше потрібен був окремий каркасний код. Іноді об'єднання зберігає 10 байт; іноді коштує 5. Не дізнаєшся, поки не спробуєш.
 
-**The escape hatch: choose a different effect.** If your plasma needs a sine table and you are 30 bytes over, no amount of micro-optimisation will save you. Switch to an effect that generates its visual from pure register arithmetic: XOR patterns, modular arithmetic, bit manipulation. An XOR interference pattern like the one in `intro256.a80` needs zero data bytes. The visual is less smooth than a sine plasma, but it fits. At 256 bytes, "fits" is the only criterion that matters.
+**Запасний вихід: обери інший ефект.** Якщо твоїй плазмі потрібна синусна таблиця і ти перевищуєш на 30 байт, жодна мікрооптимізація не врятує. Переключись на ефект, що генерує візуальну частину з чистої регістрової арифметики: XOR-патерни, модулярна арифметика, бітові маніпуляції. Інтерференційний XOR-патерн, як у `intro256.a80`, не потребує жодного байта даних. Візуальна частина менш плавна, ніж синусна плазма, але вона вміщується. На 256 байтах "вміщується" -- єдиний критерій, що має значення.
 
 Ти вдивляєшся в шістнадцятковий дамп. Ти пробуєш перемістити звукову процедуру перед візуальною. Ти пробуєш замінити синусну таблицю генератором часу виконання. Кожна спроба перетасовує байти. Іноді все вишиковується.
 
@@ -444,17 +444,17 @@ Try radical restructuring. Can the visual effect loop also update the AY? If the
 
 ---
 
-## 13.8 Size-Coding Music: Bytebeat on AY
+## 13.8 Музика в sizecoding: Bytebeat на AY
 
-In the PC demoscene, **bytebeat** is a formula-driven approach to sound: a single expression like `t*((t>>12|t>>8)&63&t>>4)` generates PCM samples, producing surprisingly complex music from a few bytes of code. The concept was popularised by Viznut (Ville-Matias Heikkilä) in 2011, and 256-byte PC intros routinely use bytebeat for their soundtracks.
+У PC-демосцені **bytebeat** -- це формульний підхід до звуку: один вираз на кшталт `t*((t>>12|t>>8)&63&t>>4)` генерує PCM-семпли, породжуючи напрочуд складну музику з кількох байтів коду. Концепцію популяризував Viznut (Ville-Matias Heikkilä) у 2011 році, і 256-байтні PC-інтро регулярно використовують bytebeat для своїх саундтреків.
 
-On the ZX Spectrum, the situation is different. The AY-3-8910 is not a DAC -- it is a tone and noise generator with per-channel period and volume registers. You cannot feed it PCM samples in the traditional sense (volume-register sample playback exists but costs too many cycles for a size-coded intro). Instead, "AY bytebeat" means computing **tone periods and volume envelopes from mathematical formulas** driven by a frame counter.
+На ZX Spectrum ситуація інша. AY-3-8910 -- не ЦАП -- це генератор тону та шуму з поканальними регістрами періоду та гучності. Ти не можеш подати йому PCM-семпли в традиційному сенсі (відтворення семплів через регістр гучності існує, але коштує занадто багато тактів для інтро з обмеженням розміру). Натомість "AY bytebeat" означає обчислення **періодів тону та огибних гучності з математичних формул**, керованих лічильником кадрів.
 
-The principle is the same as PC bytebeat: replace stored music data with a formula. The output target is different.
+Принцип такий самий, як у PC bytebeat: замінити збережені музичні дані формулою. Ціль виведення інша.
 
-### The Minimal AY Formula Engine
+### Мінімальний формульний рушій AY
 
-A typical approach in a 256-byte intro:
+Типовий підхід у 256-байтному інтро:
 
 ```z80 id:ch13_the_minimal_ay_formula_engine
 ; Frame-driven AY "bytebeat" — ~20 bytes
@@ -470,13 +470,13 @@ A typical approach in a 256-byte intro:
     ; Write to AY: register 0 = tone period low, register 8 = volume
 ```
 
-This produces a cycling tone that sweeps through periods and fades in/out -- not music in any traditional sense, but recognisably structured sound. The trick is choosing formulas that produce **musically interesting patterns** from simple bitwise operations.
+Це породжує циклічний тон, що проходить через періоди і наростає/згасає -- не музика в традиційному сенсі, але впізнавано структурований звук. Трюк у тому, щоб обрати формули, що породжують **музично цікаві патерни** з простих побітових операцій.
 
-### Techniques for Better-Sounding Formulas
+### Техніки для кращого звучання формул
 
-**Pentatonic masking.** Raw bitwise formulas produce chromatic noise. Mask the period value through a pentatonic lookup (5 bytes: the note intervals) to constrain output to a pleasant scale. Five bytes of data buys musically coherent sound.
+**Пентатонічне маскування.** Сирі побітові формули породжують хроматичний шум. Замаскуй значення періоду через пентатонічний пошук (5 байт: інтервали нот), щоб обмежити вихід приємною гамою. П'ять байт даних купують музично зв'язний звук.
 
-**Multi-channel formulas.** The AY has three tone channels. Use different bit rotations of the same frame counter for each channel -- they will produce related but distinct patterns, creating an impression of harmony:
+**Багатоканальні формули.** AY має три тональних канали. Використовуй різні бітові ротації того самого лічильника кадрів для кожного каналу -- вони породжуватимуть споріднені, але відмінні патерни, створюючи враження гармонії:
 
 ```z80 id:ch13_techniques_for_better
     ld   a, (frame)
@@ -490,78 +490,78 @@ This produces a cycling tone that sweeps through periods and fades in/out -- not
     call .write_ch_c
 ```
 
-**Noise percussion.** Toggle the noise generator on specific frame intervals (every 8th or 16th frame) for a rhythmic pulse. Cost: one `AND` + one `OUT` — about 6 bytes for a basic kick pattern.
+**Шумова перкусія.** Перемикай генератор шуму на специфічних кадрових інтервалах (кожен 8-й або 16-й кадр) для ритмічного пульсу. Вартість: один `AND` + один `OUT` -- приблизно 6 байт для базового ритму бочки.
 
-**LD A,R as entropy.** The R register (memory refresh counter) is effectively random from a musical perspective. Mix it with the frame counter: `ld a,r : xor (frame)` produces evolving textures that never quite repeat. Useful for ambient or experimental soundscapes.
+**LD A,R як ентропія.** Регістр R (лічильник оновлення пам'яті) фактично випадковий з музичної точки зору. Змішай його з лічильником кадрів: `ld a,r : xor (frame)` породжує текстури, що еволюціонують і ніколи не повторюються точно. Корисно для ембієнтних або експериментальних звукових ландшафтів.
 
-### Bytebeat vs. Sequenced Music
+### Bytebeat проти секвенсованої музики
 
-| | Bytebeat (formula) | Sequenced (pattern data) |
+| | Bytebeat (формула) | Секвенсований (патернові дані) |
 |---|---|---|
-| **Bytes** | 10-30 (code only) | 200-400 (player) + 500+ (patterns) |
-| **Musical quality** | Abstract, generative, alien | Melodic, structured, human |
-| **Best at** | 256b, 512b | 1K, 4K |
-| **Sound** | Rhythmic noise, sweeps, drones | Actual tunes |
+| **Байти** | 10-30 (лише код) | 200-400 (програвач) + 500+ (патерни) |
+| **Музична якість** | Абстрактний, генеративний, чужий | Мелодійний, структурований, людський |
+| **Найкращий на** | 256b, 512b | 1K, 4K |
+| **Звук** | Ритмічний шум, розгортки, дрони | Справжні мелодії |
 
-At 256 bytes, bytebeat is your only realistic option -- there is no room for a pattern player. At 512, you can afford a tiny sequencer with 4-8 notes. At 4K, use a real player. The bytebeat approach is not inferior -- it produces a *different kind* of sound that fits the aesthetic of tiny programs. Some of the most memorable 256-byte intros are memorable precisely because their sound is alien and generative, not because it imitates conventional music.
-
----
-
-## 13.9 Procedural Graphics: The Rendered GFX Compo
-
-Some demoscene parties run a **rendered graphics** (or **procedural graphics**) competition: submit a program that generates a static image. No pre-drawn bitmaps, no loaded data -- every pixel must be computed. The visual output is judged as artwork, but it must be born from code.
-
-On the Spectrum, this means your program fills the 6,912-byte screen area (bitmap + attributes) algorithmically, then halts. The image stays on screen for judging. File size limits vary -- some compos allow any size, others impose 256-byte or 4K limits, turning it into a hybrid of size-coding and digital art.
-
-### Why the Spectrum Is Interesting for This
-
-The Spectrum's display constraints -- 1-bit pixels with 8×8 attribute colour -- make procedural graphics a genuinely different challenge from doing it on a 256-colour VGA or 24-bit framebuffer. You cannot just compute RGB values per pixel. You must think in terms of:
-
-- **Pixel patterns** within 8×8 character cells (dithering, halftone)
-- **Attribute colour** per cell (2 colours from a palette of 15)
-- **The interaction** between pixel pattern and attribute -- a gradient needs both smooth dithering AND smooth attribute transitions
-
-This constraint creates a distinctive visual style. Procedural Spectrum graphics look like nothing else -- the colour grid gives them a mosaic quality that is part of the aesthetic, not a limitation to hide.
-
-### Common Approaches
-
-**Mandelbrot and Julia sets.** The classic choice. The iteration loop is compact (~30-50 bytes for the core), and the fractal detail is infinite -- zoom coordinates and iteration count are the only parameters. Map iteration count to dither pattern for pixel data, map to palette index for attributes. A Mandelbrot renderer fits comfortably in 256 bytes and produces images that look hand-crafted.
-
-**Interference patterns.** Multiple overlapping sine or cosine waves, sampled at each pixel position. `pixel = sin(x*freq1 + phase1) + sin(y*freq2 + phase2) > threshold`. Produces organic, flowing shapes. On the Spectrum, threshold the sum to get the pixel bit, quantise to get the attribute colour.
-
-**Distance fields.** Compute the distance from each pixel to a set of shapes (circles, lines, Bézier curves). Threshold the distance for pixel data, map it to colour for attributes. A few shapes can produce surprisingly complex images -- overlapping circles alone can create intricate patterns.
-
-**L-systems and fractals.** Recursive branching structures (trees, ferns, Sierpinski triangles). The recursion maps naturally to stack-based Z80 code, and the visual output has organic complexity from minimal code. A Sierpinski triangle renderer is about 20 bytes; a branching tree with random angles is perhaps 80.
-
-### The Byte Budget for Art
-
-In a size-limited rendered GFX compo, every byte goes toward visual complexity. There is no frame loop, no sound, no animation -- just a straight-line program that fills the screen and stops. This means your full budget goes to rendering code and coordinate generation. At 256 bytes, you can produce a detailed fractal. At 4K (compressed), you can generate images with multiple layers, computed textures, and careful dithering that approach hand-drawn quality.
-
-The judging criterion is purely visual -- the audience votes on the image, not the code. But the code constraint shapes the aesthetic. Procedural Spectrum graphics have a recognisable look: mathematical precision, fractal detail, and the characteristic colour grid of attribute-based rendering. The best entries embrace these constraints as style rather than fighting them.
+На 256 байтах bytebeat -- твій єдиний реалістичний варіант -- для патернового програвача немає місця. На 512 ти можеш дозволити собі крихітний секвенсор з 4-8 нотами. На 4K використовуй справжній програвач. Підхід bytebeat не гірший -- він породжує *інший вид* звуку, що відповідає естетиці крихітних програм. Деякі з найбільш пам'ятних 256-байтних інтро пам'ятні саме тому, що їхній звук чужий і генеративний, а не тому, що він імітує конвенційну музику.
 
 ---
 
-## 13.10 Size-Coding as Art
+## 13.9 Процедурна графіка: Компо рендерованої графіки
 
-Size-coding teaches you things that improve all your coding: the discipline of questioning every byte sharpens instruction-encoding awareness, the habit of looking for overlaps transfers to any optimisation work, and the practice of exploiting initial state and side effects makes you a better systems programmer.
+Деякі демосценні паті проводять змагання з **рендерованої графіки** (або **процедурної графіки**): надішли програму, що генерує статичне зображення. Жодних попередньо намальованих растрів, жодних завантажених даних -- кожен піксель повинен бути обчислений. Візуальний результат оцінюється як мистецтво, але він повинен народитися з коду.
+
+На Spectrum це означає, що твоя програма алгоритмічно заповнює 6 912 байт екранної області (растр + атрибути), потім зупиняється. Зображення залишається на екрані для оцінювання. Обмеження розміру файлу варіюються -- деякі компо дозволяють будь-який розмір, інші накладають ліміт 256 байт або 4K, перетворюючи це на гібрид sizecoding та цифрового мистецтва.
+
+### Чому Spectrum цікавий для цього
+
+Обмеження дисплея Spectrum -- 1-бітні пікселі з кольором атрибутів 8x8 -- роблять процедурну графіку справді іншим викликом порівняно з 256-кольоровим VGA або 24-бітним фреймбуфером. Ти не можеш просто обчислити RGB-значення на піксель. Ти повинен думати в термінах:
+
+- **Піксельних патернів** у комірках символів 8x8 (дизеринг, півтон)
+- **Кольору атрибутів** на комірку (2 кольори з палітри 15)
+- **Взаємодії** між піксельним патерном і атрибутом -- градієнт потребує і плавного дизерингу, І плавних переходів атрибутів
+
+Це обмеження створює характерний візуальний стиль. Процедурна графіка Spectrum не схожа ні на що інше -- кольорова сітка надає їй якість мозаїки, яка є частиною естетики, а не обмеженням, яке треба приховувати.
+
+### Поширені підходи
+
+**Множини Мандельброта та Жулія.** Класичний вибір. Цикл ітерацій компактний (~30-50 байт для ядра), а фрактальна деталізація нескінченна -- координати зуму та кількість ітерацій -- єдині параметри. Відобрази кількість ітерацій у патерн дизерингу для піксельних даних, відобрази в індекс палітри для атрибутів. Рендерер Мандельброта комфортно вміщується у 256 байт і породжує зображення, що виглядають ручної роботи.
+
+**Інтерференційні патерни.** Кілька накладених синусних або косинусних хвиль, зібраних у кожній позиції пікселя. `pixel = sin(x*freq1 + phase1) + sin(y*freq2 + phase2) > threshold`. Породжує органічні, плинні форми. На Spectrum порогуй суму для отримання піксельного біта, квантуй для отримання кольору атрибуту.
+
+**Поля відстаней.** Обчисли відстань від кожного пікселя до набору форм (кіл, ліній, кривих Безьє). Порогуй відстань для піксельних даних, відобрази в колір для атрибутів. Кілька форм можуть породити напрочуд складні зображення -- самі лише кола, що перекриваються, створюють вишукані патерни.
+
+**L-системи та фрактали.** Рекурсивні розгалужені структури (дерева, папороті, трикутники Серпінського). Рекурсія природно відображається на стеко-орієнтований код Z80, а візуальний результат має органічну складність з мінімального коду. Рендерер трикутника Серпінського -- це приблизно 20 байт; розгалужене дерево з випадковими кутами -- можливо, 80.
+
+### Бюджет байтів для мистецтва
+
+У компо рендерованої графіки з обмеженням розміру кожен байт іде на візуальну складність. Немає кадрового циклу, немає звуку, немає анімації -- лише лінійна програма, що заповнює екран і зупиняється. Це означає, що весь твій бюджет іде на код рендерингу та генерацію координат. На 256 байтах можна створити детальний фрактал. На 4K (стиснених) можна генерувати зображення з кількома шарами, обчисленими текстурами і ретельним дизерингом, що наближаються до якості ручного малювання.
+
+Критерій оцінювання суто візуальний -- глядачі голосують за зображення, а не за код. Але кодове обмеження формує естетику. Процедурна графіка Spectrum має впізнаваний вигляд: математична точність, фрактальна деталізація та характерна кольорова сітка рендерингу на основі атрибутів. Найкращі роботи приймають ці обмеження як стиль, а не борються з ними.
+
+---
+
+## 13.10 Sizecoding як мистецтво
+
+Sizecoding навчає речам, що покращують усе твоє програмування: дисципліна сумніватися в кожному байті загострює усвідомлення кодування інструкцій, звичка шукати перетинання переноситься на будь-яку оптимізаційну роботу, а практика використання початкового стану та побічних ефектів робить тебе кращим системним програмістом.
 
 ---
 
 ## Підсумок
 
-- **Size-coding** competitions require complete programs in 256, 512, 1K, 4K, or 8K bytes -- strict limits that demand a fundamentally different approach to programming.
-- **The size-coder's toolkit** includes register initialization assumptions, DJNZ as a combined decrement-and-branch, RST as a 1-byte CALL, overlapping instructions, and flag abuse via SBC A,A -- tricks that save 1-5 bytes each but compound across a program.
-- **NHBF** (UriS, CC 2025) demonstrates the 256-byte mindset: every byte does double duty, register states from one routine feed into the next, instruction choice is driven purely by encoding size.
-- **The byte budget** for a typical 256-byte intro allocates ~90-130 bytes to framework (screen fill, AY init, frame sync, loop structure), leaving 120-160 bytes for the actual creative effect.
-- **Choosing the right effect** matters more than micro-optimisation: attribute-based visuals with arithmetic formulas (XOR, modular math) encode cheaply; pixel-level effects and data tables consume too many bytes at 256.
-- **The LPRINT trick** (diver4d, 2015) redirects BASIC's printer output to screen memory via address 23681, producing complex visual patterns in a handful of bytes -- from pirated cassette loaders to demo art.
-- **Each size tier is qualitatively different:** 256 bytes allows one effect with minimal sound; 512 adds sine tables and two-channel music; 1K enables pixel-level effects, tracker music, and multiple parts; 4K crosses the threshold into mini-demo territory with compression, full soundtracks, and multi-effect compositions.
-- **4K intros** are where compression becomes viable: a ~200-byte decompressor unlocks 6-8K of working space, music players with pattern data fit comfortably, and scene tables enable 2-4 distinct effects with transitions. The optimisation target shifts from raw assembled size to compressed packed size.
-- **AY bytebeat** replaces stored music data with formulas: compute tone periods and volumes from the frame counter using bitwise arithmetic. At 256 bytes, formula-driven sound (10-30 bytes) is the only option; at 4K, switch to a real pattern player. Pentatonic masking, multi-channel bit rotation, and noise percussion add musicality for minimal bytes.
-- **Procedural graphics** (rendered GFX) competitions require every pixel to be computed, not loaded. The Spectrum's 1-bit pixels with 8×8 attribute colour make this a unique challenge -- Mandelbrot sets, interference patterns, distance fields, and L-systems all produce distinctive results within the attribute grid aesthetic.
-- **The optimisation process** moves from structural changes (eliminating tables, merging loops) to encoding choices (RST for CALL, JR for JP, XOR A for LD A,0) to serendipitous discoveries (register states aligning with data needs).
-- **Counting bytes precisely** -- via assembler DISPLAY/ASSERT, symbol file analysis, and hex dump inspection -- is essential. Intuition about code size is unreliable.
-- **The ORG trick** -- choosing your load address so that address bytes double as useful data -- represents the deepest level of the puzzle.
+- **Sizecoding** змагання вимагають завершених програм у 256, 512, 1K, 4K або 8K байт -- суворі ліміти, що потребують фундаментально іншого підходу до програмування.
+- **Набір інструментів кодера розміру** включає припущення про ініціалізацію регістрів, DJNZ як комбінований декремент-і-перехід, RST як 1-байтний CALL, перекриття інструкцій і зловживання прапорцями через SBC A,A -- трюки, що зберігають 1-5 байт кожний, але накопичуються по всій програмі.
+- **NHBF** (UriS, CC 2025) демонструє мислення на 256 байтах: кожен байт виконує подвійну функцію, стани регістрів від однієї підпрограми живлять наступну, вибір інструкцій визначається суто розміром кодування.
+- **Бюджет байтів** для типового 256-байтного інтро виділяє ~90-130 байт на каркас (заповнення екрану, ініціалізація AY, синхронізація кадрів, структура циклу), залишаючи 120-160 байт для власне творчого ефекту.
+- **Вибір правильного ефекту** важливіший за мікрооптимізацію: візуальна частина на атрибутах з арифметичними формулами (XOR, модулярна математика) кодується дешево; піксельні ефекти та таблиці даних споживають занадто багато байтів на 256.
+- **Трюк з LPRINT** (diver4d, 2015) перенаправляє вивід принтера BASIC на екранну пам'ять через адресу 23681, породжуючи складні візуальні патерни в кількох байтах -- від піратських завантажувачів касет до демо-мистецтва.
+- **Кожен рівень розміру якісно відрізняється:** 256 байт дозволяють один ефект з мінімальним звуком; 512 додають синусні таблиці та двоканальну музику; 1K відкривають піксельні ефекти, музику трекера та кілька частин; 4K перетинають поріг у територію міні-демо з стисненням, повними саундтреками та багатоефектними композиціями.
+- **4K інтро** -- це точка, де стиснення стає життєздатним: ~200-байтний розпаковувач відкриває 6-8K робочого простору, музичні програвачі з патерновими даними вміщуються комфортно, а таблиці сцен дозволяють 2-4 окремих ефекти з переходами. Ціль оптимізації зсувається від сирого розміру після асемблювання до стисненого запакованого розміру.
+- **AY bytebeat** замінює збережені музичні дані формулами: обчислюй періоди тону та гучність з лічильника кадрів побітовою арифметикою. На 256 байтах формульний звук (10-30 байт) -- єдиний варіант; на 4K переходь на справжній патерновий програвач. Пентатонічне маскування, багатоканальна бітова ротація та шумова перкусія додають музикальності за мінімум байтів.
+- **Процедурна графіка** (рендерована GFX) змагання вимагають, щоб кожен піксель був обчислений, а не завантажений. 1-бітні пікселі Spectrum з кольором атрибутів 8x8 роблять це унікальним викликом -- множини Мандельброта, інтерференційні патерни, поля відстаней та L-системи породжують характерні результати в естетиці сітки атрибутів.
+- **Процес оптимізації** рухається від структурних змін (усунення таблиць, об'єднання циклів) до вибору кодування (RST замість CALL, JR замість JP, XOR A замість LD A,0) до серендипних відкриттів (збіг станів регістрів з потребами даних).
+- **Точний підрахунок байтів** -- через DISPLAY/ASSERT асемблера, аналіз файлу символів та інспекцію hex-дампу -- необхідний. Інтуїція щодо розміру коду ненадійна.
+- **Трюк з ORG** -- вибір адреси завантаження так, щоб байти адреси подвоювалися як корисні дані -- представляє найглибший рівень головоломки.
 
 ---
 

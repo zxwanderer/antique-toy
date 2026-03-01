@@ -33,9 +33,9 @@ ZX Spectrum відображає два кольори на комірку 8x8. 
 
 Розв'язок Dark'а: попередньо обчисли кожну екранну адресу та зберігай їх як таблицю, по якій ходить вказівник стеку. POP зчитує 2 байти та автоінкрементує SP, усе за 10 тактів. Вкажи SP на таблицю замість реального стеку, і POP стає найшвидшим можливим отриманням адреси — жодних індексних регістрів, жодної арифметики вказівників, жодних накладних витрат.
 
-Compare POP to the alternatives. `LD A,(HL) : INC HL` fetches one byte in 11 T-states -- you would need two such pairs (22 T) to fetch an address, plus `LD L,A / LD H,A` bookkeeping. An indexed load like `LD L,(IX+0) : LD H,(IX+1)` costs 38 T-states for the pair. POP fetches both bytes, increments the pointer, and loads a register pair -- 10 T-states, no contest. The price is that you surrender the stack pointer to the renderer. Nothing else can use SP while the inner loop runs.
+Порівняй POP з альтернативами. `LD A,(HL) : INC HL` зчитує один байт за 11 тактів — тобі знадобляться дві такі пари (22 T), щоб зчитати адресу, плюс обслуговування `LD L,A / LD H,A`. Індексне завантаження типу `LD L,(IX+0) : LD H,(IX+1)` коштує 38 тактів за пару. POP зчитує обидва байти, інкрементує вказівник та завантажує регістрову пару — 10 тактів, без конкуренції. Ціна — ти віддаєш вказівник стеку рендереру. Ніщо інше не може використовувати SP, поки працює внутрішній цикл.
 
-This means interrupts are fatal. If an interrupt fires while SP points into the address table, the Z80 pushes the return address onto the "stack" -- which is actually your data table. Two bytes of carefully computed screen addresses get overwritten with a return address, and the interrupt service routine proceeds to execute whatever garbage sits at the corrupted location. The result is anything from a garbled frame to a hard crash. The solution is simple and non-negotiable: `DI` before hijacking SP, `EI` after restoring it. Every POP-trick routine in every Spectrum demo follows this pattern:
+Це означає, що переривання фатальні. Якщо переривання спрацює, поки SP вказує на таблицю адрес, Z80 покладе адресу повернення на "стек" — який насправді є твоєю таблицею даних. Два байти ретельно обчислених екранних адрес буде перезаписано адресою повернення, а процедура обслуговування переривання почне виконувати будь-яке сміття, що опиниться у пошкодженому місці. Результат — від спотвореного кадру до повного зависання. Рішення просте та безальтернативне: `DI` перед захопленням SP, `EI` після відновлення. Кожна процедура з POP-трюком у кожному демо для Spectrum слідує цьому патерну:
 
 ```z80 id:ch10_stack_based_address_tables
     di
@@ -47,9 +47,9 @@ This means interrupts are fatal. If an interrupt fires while SP points into the 
     ei
 ```
 
-The save/restore uses self-modifying code because it is the fastest way to both save and restore SP in one step. `EX (SP),HL` requires a valid stack. `LD (addr),SP` exists (opcode ED 73, 20 T-states), but it saves SP to a fixed address -- you would then need a separate `LD SP,(addr)` to restore it later (also 20 T-states), and the restore is no faster than the self-modifying approach. The SMC technique writes SP's value directly into the operand field of a later `LD SP,nnnn` instruction: `LD (.smc+1),SP` costs 20 T-states for the save, and the restore (`LD SP,nnnn` with the patched operand) costs just 10 T-states. The combined save+restore is 30 T-states versus 40 T-states for the LD (addr),SP / LD SP,(addr) pair -- a small saving that also avoids reserving a separate memory location.
+Збереження/відновлення використовує самомодифікований код, бо це найшвидший спосіб одночасно зберегти та відновити SP. `EX (SP),HL` вимагає валідний стек. `LD (addr),SP` існує (опкод ED 73, 20 тактів), але вона зберігає SP за фіксованою адресою — тоді потрібна окрема `LD SP,(addr)` для відновлення (також 20 тактів), і відновлення не швидше за самомодифікований підхід. Техніка SMC записує значення SP безпосередньо в поле операнда пізнішої інструкції `LD SP,nnnn`: `LD (.smc+1),SP` коштує 20 тактів на збереження, а відновлення (`LD SP,nnnn` з підставленим операндом) коштує лише 10 тактів. Загальна вартість збереження+відновлення — 30 тактів проти 40 тактів для пари LD (addr),SP / LD SP,(addr) — невелика економія, що також позбавляє потреби резервувати окрему комірку пам'яті.
 
-One subtle consequence: the DI/EI window blocks the frame interrupt. If the inner loop runs long, HALT at the top of the main loop will still catch the next interrupt -- but if the rendering overshoots an entire frame, you lose sync. This is why the budget arithmetic matters. You must know your worst-case timing before committing to the POP trick.
+Один тонкий наслідок: вікно DI/EI блокує кадрове переривання. Якщо внутрішній цикл працює довго, HALT на початку основного циклу все одно зловить наступне переривання — але якщо рендеринг вийде за межі цілого кадру, ти втратиш синхронізацію. Ось чому бюджетна арифметика має значення. Ти мусиш знати найгірший час виконання, перш ніж переходити на POP-трюк.
 
 Рух підстрибування закодований цілком у таблиці адрес. Кожен запис — екранна адреса, що вже включає вертикальний синусоїдальний зсув. "Підстрибування" не відбувається під час рендерингу. Воно відбулося, коли таблиця була побудована. Усі три виміри анімації — позиція скролу, хвиля підстрибування, форма символу — згортаються в єдину лінійну послідовність 16-бітних адрес, споживаних на повній швидкості через POP.
 
@@ -95,18 +95,18 @@ One subtle consequence: the DI/EI window blocks the frame interrupt. If the inne
 
 ### Бюджетна арифметика
 
-Let us work the numbers properly. The standard Spectrum 48K frame is 69,888 T-states (the Pentagon clone runs slightly longer at 71,680). Of that, the ULA steals T-states during the active display for memory contention, but the scroller writes to screen memory during the entire frame, not just during the border, so contention is a real factor. In practice, assume about 60,000 usable T-states on a 48K and 65,000 on a Pentagon. Subtract music playback (a typical AY player costs 3,000-5,000 T per frame), screen clearing, and table construction. That leaves roughly 40,000-50,000 T-states for the actual dot rendering.
+Порахуймо як слід. Стандартний кадр Spectrum 48K — це 69 888 тактів (клон Pentagon працює трохи довше — 71 680). З них ULA краде такти під час активного відображення через спірну пам'ять, а скролер записує в екранну пам'ять протягом усього кадру, не тільки під час бордюру, тому конфлікт пам'яті — реальний фактор. На практиці рахуй приблизно 60 000 корисних тактів на 48K та 65 000 на Pentagon. Віднімай відтворення музики (типовий AY-програвач коштує 3 000–5 000 T за кадр), очищення екрану та побудову таблиці. Залишається приблизно 40 000–50 000 тактів на власне рендеринг точок.
 
-Consider a display of 8 characters of 8x8 font = 512 font bits per frame (8 chars x 8 bytes x 8 bits). With a typical font fill rate of about 30%, roughly 154 bits are set (opaque) and 358 are clear (transparent). The inner loop cost:
+Розглянемо відображення 8 символів шрифту 8x8 = 512 бітів шрифту за кадр (8 символів x 8 байтів x 8 бітів). При типовому заповненні шрифту близько 30%, приблизно 154 біти встановлені (непрозорі) та 358 чисті (прозорі). Вартість внутрішнього циклу:
 
-- 154 opaque pixels at 36 T each = 5,544 T
-- 358 transparent pixels at 26 T each = 9,308 T
-- 64 byte-fetches (`LD A,(BC) : INC BC`) at 13 T each = 832 T
-- Total: approximately 15,684 T-states
+- 154 непрозорих пікселі по 36 T кожний = 5 544 T
+- 358 прозорих пікселів по 26 T кожний = 9 308 T
+- 64 зчитування байтів (`LD A,(BC) : INC BC`) по 13 T кожне = 832 T
+- Разом: приблизно 15 684 такти
 
-That is well within a single frame. You could render 20+ characters before hitting the budget ceiling. The bottleneck is not the inner loop -- it is the table construction. Building 512 address entries with sine lookups and screen address calculation costs roughly 100-150 T-states per entry (depending on implementation), adding 50,000-75,000 T to the frame. Illusion solves this by pre-computing the entire table set into memory and cycling through offsets, or by building incrementally: when the scroll advances by one pixel, most table entries shift by one position and only the new column needs full recalculation.
+Це цілком вкладається в один кадр. Ти міг би відрендерити 20+ символів, перш ніж досягти стелі бюджету. Вузьке місце — не внутрішній цикл, а побудова таблиці. Створення 512 записів адрес з пошуками по синусах та обчисленням адрес екрану коштує приблизно 100–150 тактів на запис (залежно від реалізації), додаючи 50 000–75 000 T до кадру. Illusion вирішує це попередніми обчисленнями усього набору таблиць у пам'яті та циклічним проходом по зсувах, або інкрементальною побудовою: коли скрол просувається на один піксель, більшість записів таблиці зсуваються на одну позицію, і лише новий стовпець потребує повного перерахунку.
 
-The numbers work because two optimisations compound. Stack-based addressing eliminates all coordinate calculation from the inner loop. Texture-driven transparency eliminates all writes for empty pixels. The table build is expensive, but it runs outside the time-critical DI window and can be spread across the frame.
+Числа зводяться, тому що дві оптимізації підсилюють одна одну. Стекова адресація усуває все обчислення координат із внутрішнього циклу. Прозорість на основі текстури усуває всі записи для порожніх пікселів. Побудова таблиці дорога, але вона виконується поза критичним вікном DI і може бути розподілена по кадру.
 
 ### Як закодоване підстрибування
 
@@ -116,9 +116,9 @@ The numbers work because two optimisations compound. Stack-based addressing elim
 y_offset = sin_table[(column * phase_freq + scroll_pos * speed_freq) & 255]
 ```
 
-The two frequency parameters control the visual character of the wave. `phase_freq` determines the spatial frequency -- how many wave cycles fit across the visible dot columns. A value of 4 means each dot column advances 4 positions into the sine table, so 256/4 = 64 columns span one full wave cycle. A value of 8 doubles the frequency, creating a tighter ripple. `speed_freq` controls how fast the wave propagates over time: higher values make the bounce scroll faster independently of the text scroll.
+Два параметри частоти контролюють візуальний характер хвилі. `phase_freq` визначає просторову частоту — скільки хвильових циклів вміщується по видимих точкових стовпцях. Значення 4 означає, що кожний стовпець точок просувається на 4 позиції в таблиці синусів, тож 256/4 = 64 стовпці охоплюють один повний хвильовий цикл. Значення 8 подвоює частоту, створюючи щільнішу брижі. `speed_freq` контролює, як швидко хвиля поширюється з часом: більші значення змушують підстрибування прокручуватися швидше незалежно від скролу тексту.
 
-The sine table itself is a 256-byte array of signed offsets, page-aligned for fast lookup. Page alignment means the high byte of the table address is fixed; only the low byte changes, so the lookup reduces to:
+Сама таблиця синусів — це 256-байтовий масив знакових зсувів, вирівняний за сторінкою для швидкого пошуку. Вирівнювання за сторінкою означає, що старший байт адреси таблиці фіксований; змінюється лише молодший байт, тому пошук зводиться до:
 
 ```z80 id:ch10_how_the_bounce_is_encoded_2
     ld   hl, sin_table    ; H = page, L = don't care
@@ -126,39 +126,39 @@ The sine table itself is a 256-byte array of signed offsets, page-aligned for fa
     ld   a, (hl)          ; 7 T — one memory read, no arithmetic
 ```
 
-The values in the table are signed: positive offsets push the dot down, negative offsets push it up. The amplitude is baked into the table at generation time. A table with range -24 to +24 gives a bounce of 48 scanlines peak-to-peak. Generating the table is a one-time cost, typically done offline or during initialisation using a lookup or a simple approximation. On the Z80, computing true sine values at runtime is expensive, so demoscene coders either pre-compute tables externally or use quadrant symmetry: calculate one quarter-wave (64 entries), then mirror and negate to fill the remaining three quarters.
+Значення в таблиці знакові: додатні зсуви штовхають точку вниз, від'ємні — вгору. Амплітуда запечена в таблицю при генерації. Таблиця з діапазоном від -24 до +24 дає підстрибування в 48 рядків розгортки від піку до піку. Генерація таблиці — одноразова витрата, що зазвичай виконується офлайн або під час ініціалізації за допомогою пошуку чи простого наближення. На Z80 обчислення справжніх синусів під час виконання дороге, тому кодери демосцени або попередньо обчислюють таблиці зовні, або використовують квадрантну симетрію: обчислюють одну чверть хвилі (64 записи), а потім дзеркалюють та інвертують знак для заповнення решти трьох чвертей.
 
-Given each dot's (x, y + y_offset), the Spectrum screen address is calculated and stored in the table. The table-building code runs once per frame, outside the inner loop. The inner loop sees only a stream of pre-computed addresses.
+Знаючи координати кожної точки (x, y + y_offset), обчислюється адреса екрану Spectrum та зберігається в таблиці. Код побудови таблиці виконується раз за кадр, поза внутрішнім циклом. Внутрішній цикл бачить лише потік попередньо обчислених адрес.
 
-### Beyond Simple Sine: Lissajous, Helix, and Multi-Wave Patterns
+### За межами простого синуса: Ліссажу, спіраль та багатохвильові патерни
 
-The beauty of the pre-computed table approach is that the inner loop does not care what shape the motion follows. It consumes addresses at a fixed cost regardless of the trajectory that generated them. This makes it trivial to experiment with different movement patterns -- all the complexity lives in the table-building code.
+Краса підходу з попередньо обчисленими таблицями в тому, що внутрішньому циклу байдуже, яку форму має рух. Він споживає адреси з фіксованою вартістю незалежно від траєкторії, що їх породила. Це робить тривіальним експериментування з різними патернами руху — вся складність живе у коді побудови таблиці.
 
-A **Lissajous pattern** adds a horizontal sine offset as well as the vertical one. Instead of each column mapping to a fixed x byte on screen, the x position also oscillates:
+**Патерн Ліссажу** додає горизонтальний синусоїдальний зсув на додачу до вертикального. Замість того, щоб кожний стовпець відображався на фіксований байт x на екрані, позиція x теж осцилює:
 
 ```text
 x_offset = sin_table[(column * x_freq + phase_x) & 255]
 y_offset = sin_table[(column * y_freq + phase_y) & 255]
 ```
 
-When `x_freq` and `y_freq` are coprime (say 3 and 2), the dot field traces a Lissajous figure -- the classic oscilloscope pattern. The text becomes a ribbon weaving through space. Different frequency ratios produce dramatically different shapes: 1:1 gives a circle or ellipse, 1:2 gives a figure-eight, 2:3 gives the trefoil pattern familiar from old analogue test equipment.
+Коли `x_freq` та `y_freq` взаємно прості (скажімо, 3 та 2), точкове поле вимальовує фігуру Ліссажу — класичний патерн осцилографа. Текст стає стрічкою, що пронизує простір. Різні співвідношення частот дають драматично різні форми: 1:1 дає коло або еліпс, 1:2 — вісімку, 2:3 — трилисник, знайомий зі старого аналогового вимірювального обладнання.
 
-A **helix** or spiral effect uses a single phase that advances per column, but varies the amplitude:
+Ефект **спіралі** або гвинта використовує єдину фазу, що просувається по стовпцях, але варіює амплітуду:
 
 ```text
 amplitude = base_amp + sin_table[(column * 2 + time) & 255] * depth_scale
 y_offset = sin_table[(column * freq + phase) & 255] * amplitude / max_amp
 ```
 
-This creates the illusion of dots receding into depth -- the wave flattens at the "far" point of the spiral and expands at the "near" point.
+Це створює ілюзію точок, що відступають у глибину — хвиля сплющується в "далекій" точці спіралі та розширюється в "ближній".
 
-**Multi-wave superposition** is the simplest technique with the most dramatic payoff. Add two sine terms with different frequencies:
+**Суперпозиція кількох хвиль** — найпростіша техніка з найдраматичнішим ефектом. Додай два синусних доданки з різними частотами:
 
 ```text
 y_offset = sin_table[(col * 4 + phase1) & 255] + sin_table[(col * 7 + phase2) & 255]
 ```
 
-The result is a complex, organic-looking undulation that never quite repeats. Advancing `phase1` and `phase2` at different speeds produces continuously evolving motion from just two table lookups per column. Three or more harmonics create waves that look almost fluid-dynamic. This is the cheapest possible way to generate complex motion -- each additional harmonic costs one table lookup and one addition per column in the table builder, and the inner loop cost remains unchanged.
+Результат — складне, органічне хвилеподібне коливання, що ніколи не повторюється точно. Просування `phase1` та `phase2` з різними швидкостями породжує безперервно еволюціонуючий рух всього з двох пошуків по таблиці на стовпець. Три або більше гармоніки створюють хвилі, що виглядають майже як динаміка рідини. Це найдешевший можливий спосіб генерувати складний рух — кожна додаткова гармоніка коштує один пошук по таблиці та одне додавання на стовпець у побудовнику таблиці, а вартість внутрішнього циклу залишається незмінною.
 
 ---
 
@@ -200,7 +200,7 @@ The result is a complex, organic-looking undulation that never quite repeats. Ad
 
 Без кроку інвертування "увімкнені" пікселі завжди показували б чорнило, а "вимкнені" — завжди папір. Ти отримав би рівно два видимих кольори на комірку, що мерехтять між двома різними парами. Інвертування гарантує, що і чорнило, і папір вносять вклад в обидва стани пікселів протягом циклу, змішуючи всі чотири кольори в сприйнятий вивід.
 
-On the Spectrum, inversion is cheap. The attribute byte layout is `FBPPPIII` -- Flash, Bright, 3 bits of paper colour, 3 bits of ink colour. Swapping ink and paper means rotating the lower 6 bits: paper moves to ink position, ink moves to paper position, while Flash and Bright stay put. In code:
+На Spectrum інвертування дешеве. Розкладка байта атрибутів — `FBPPPIII` — мерехтіння (Flash), яскравість (Bright), 3 біти кольору паперу, 3 біти кольору чорнила. Обмін чорнила та паперу означає ротацію нижніх 6 бітів: папір переходить на позицію чорнила, чорнило — на позицію паперу, тоді як Flash та Bright залишаються на місці. У коді:
 
 ```z80 id:ch10_why_inversion_is_essential
 ; Swap ink and paper in attribute byte (A)
@@ -224,13 +224,13 @@ On the Spectrum, inversion is cheap. The attribute byte layout is `FBPPPIII` -- 
     or   c             ; combine: FBIIIPPP = swapped attribute
 ```
 
-The alternative is to pre-compute both normal and inverted attribute buffers at initialisation and simply cycle buffer pointers at runtime. This trades 3,072 bytes of memory for zero per-frame computation -- a worthwhile trade on 128K machines with memory to spare.
+Альтернатива — попередньо обчислити як нормальні, так і інвертовані буфери атрибутів при ініціалізації та просто циклічно перемикати вказівники на буфери під час виконання. Це обмінює 3 072 байти пам'яті на нульові обчислення за кадр — вигідний обмін на 128K-машинах із запасом пам'яті.
 
 ### Практична вартість
 
-Four pre-built attribute buffers, cycled once per frame. The per-frame cost is a block copy of 768 bytes into attribute RAM ($5800-$5AFF). Using LDIR, this costs 21 T-states per byte: 768 x 21 = 16,128 T-states. Using the stack trick (POP from the source buffer, switch SP, PUSH to attribute RAM, batching through register pairs and shadow registers), a realistic cost is around 11,000-13,000 T-states depending on batch size and loop overhead -- a modest 1.2-1.5x speedup over LDIR. The gain is smaller than you might expect because each batch requires two SP switches (save source position, load destination, then swap back), and that overhead largely offsets the raw speed advantage of POP+PUSH over LDIR. For a *fill* (writing the same value to every byte), the PUSH trick is far more effective -- load register pairs once, then PUSH repeatedly -- but a copy from varying source data cannot avoid the read cost.
+Чотири попередньо побудованих буфери атрибутів, що перемикаються раз за кадр. Покадрова вартість — блочне копіювання 768 байтів в RAM атрибутів ($5800-$5AFF). Через LDIR це коштує 21 такт на байт: 768 x 21 = 16 128 тактів. З використанням стекового трюку (POP з вихідного буфера, перемикання SP, PUSH у RAM атрибутів, пакетна обробка через регістрові пари та тіньові регістри) реалістична вартість — близько 11 000–13 000 тактів залежно від розміру пакету та накладних витрат циклу — помірне прискорення у 1,2–1,5 рази порівняно з LDIR. Виграш менший, ніж можна очікувати, бо кожний пакет вимагає двох перемикань SP (зберегти позицію джерела, завантажити призначення, потім повернути назад), і ці накладні витрати значною мірою нівелюють сиру перевагу швидкості POP+PUSH над LDIR. Для *заливки* (запис однакового значення в кожний байт) PUSH-трюк набагато ефективніший — завантаж регістрові пари один раз, потім виконуй PUSH повторно — але копіювання з різних вихідних даних не може уникнути вартості читання.
 
-The cycle logic itself is trivial. A single variable holds the phase (0-3). Each frame, increment it and AND with 3 to wrap. Index into a 4-entry table of buffer base addresses:
+Сама логіка циклу тривіальна. Єдина змінна зберігає фазу (0–3). Кожний кадр інкрементуй її та виконуй AND з 3 для обгортання. Індексуй у 4-елементну таблицю базових адрес буферів:
 
 ```z80 id:ch10_practical_cost
     ld   a, (phase)
@@ -251,33 +251,33 @@ The cycle logic itself is trivial. A single variable holds the phase (0-3). Each
     ldir                ; copy attributes for this phase
 ```
 
-Memory: 4 x 768 = 3,072 bytes for the buffers. On a 48K machine that is a significant chunk; on 128K you can place buffers in paged banks. The pixel patterns (A and B) are written once at initialisation and never touched again -- only the attribute RAM changes each frame.
+Пам'ять: 4 x 768 = 3 072 байти на буфери. На 48K-машині це значний шматок; на 128K можна розмістити буфери в банках, що перемикаються. Піксельні патерни (A та B) записуються один раз при ініціалізації і більше не змінюються — лише RAM атрибутів змінюється кожний кадр.
 
 ### Накладення тексту
 
-In Eager, scrolling text overlays the colour animation. There are several approaches, each with different trade-offs.
+В Eager прокручуваний текст накладається на колірну анімацію. Існує кілька підходів, кожний з різними компромісами.
 
-The simplest is **cell exclusion**: reserve certain character cells for text, skip them during the colour cycle, and write fixed white-on-black attributes with actual font glyphs. This is easy to implement -- just mask those cells out of the LDIR copy -- but creates a hard visual boundary between the animated background and the static text region. The text looks pasted on.
+Найпростіший — **виключення комірок**: зарезервуй певні символьні комірки для тексту, пропускай їх під час колірного циклу та записуй фіксовані атрибути білого на чорному з реальними гліфами шрифту. Це просто реалізувати — просто замаскуй ці комірки з копіювання LDIR — але створює жорстку візуальну межу між анімованим фоном та статичною текстовою областю. Текст виглядає наклеєним.
 
-A more sophisticated approach is **pattern integration**: the glyph shapes override specific bits in both pixel patterns A and B. Where the font has a set bit, both patterns get that bit set (or cleared, depending on the desired text colour). This ensures the text pixel shows the same colour in all four phases -- it does not flicker because it never transitions between different colour states. The surrounding pixels continue to cycle normally. The result is text that appears to float on the animated background, with colour bleeding up to the edges of each letterform. The cost is that you must regenerate (or patch) the pixel patterns whenever the text scrolls, which adds a few thousand T-states per frame depending on how many cells contain text.
+Складніший підхід — **інтеграція в патерн**: форми гліфів перекривають конкретні біти в обох піксельних патернах A та B. Де шрифт має встановлений біт, обидва патерни отримують цей біт встановленим (або скинутим, залежно від бажаного кольору тексту). Це гарантує, що піксель тексту показує однаковий колір у всіх чотирьох фазах — він не мерехтить, бо ніколи не переходить між різними колірними станами. Оточуючі пікселі продовжують циклічно перемикатися нормально. Результат — текст, що ніби плаває на анімованому фоні, з кольором, що підтікає до країв кожної літери. Ціна — ти мусиш перегенерувати (або пропатчити) піксельні патерни щоразу, коли текст прокручується, що додає кілька тисяч тактів за кадр залежно від кількості комірок з текстом.
 
-A third option for 128K machines is **layer compositing**: maintain the 4-phase background in one set of memory pages and the text scroller in another, then combine them during the attribute copy. This keeps the two systems independent -- the scroller does not need to know about the colour animation and vice versa -- at the cost of a slightly more complex copy loop that masks text cells.
+Третій варіант для 128K-машин — **композитинг шарів**: підтримуй 4-фазний фон в одному наборі сторінок пам'яті, а текстовий скролер — в іншому, потім комбінуй їх під час копіювання атрибутів. Це зберігає дві системи незалежними — скролеру не потрібно знати про колірну анімацію і навпаки — ціною трохи складнішого циклу копіювання, що маскує текстові комірки.
 
 ---
 
-## Demoscene Lineage
+## Генеалогія в демосцені
 
-The dotfield scroller did not appear from nowhere. The technique sits in a lineage of ZX Spectrum effects that stretches from the mid-1980s to the present.
+Скролер з точкового поля не з'явився нізвідки. Техніка розташовується в генеалогії ефектів ZX Spectrum, що тягнеться від середини 1980-х до сьогодення.
 
-The earliest Spectrum scrollers were simple character-cell affairs: LDIR-based horizontal scrolls that shifted an entire line of character cells, one byte at a time. Pixel-smooth scrolling was harder -- the Spectrum has no hardware scroll register, so every pixel shift requires rewriting the bitmap data. By the early 1990s, demo coders had developed several approaches: RL/RR-based pixel scrolling (shifting every byte in a screen line), look-up table scrollers (pre-shifted copies of each character), and the double-buffer technique (draw into a back buffer, copy to screen). All of these were limited by the fundamental cost of moving bytes in and out of video RAM.
+Найранніші скролери на Spectrum були простими справами символьних комірок: горизонтальні скроли на основі LDIR, що зсували цілий рядок символьних комірок, по одному байту за раз. Піксельно-плавний скролінг був складнішим — Spectrum не має апаратного регістра скролу, тому кожний піксельний зсув вимагає перезапису бітмап-даних. До початку 1990-х кодери демо розробили кілька підходів: піксельний скролінг на основі RL/RR (зсув кожного байта в рядку екрану), скролери на таблицях підстановки (попередньо зсунуті копії кожного символу) та техніка подвійної буферизації (малювання у задній буфер, копіювання на екран). Усі вони були обмежені фундаментальною вартістю переміщення байтів з відеопам'яті та назад.
 
-The dotfield approach breaks from this tradition entirely. Instead of scrolling a contiguous block of pixels, it decomposes the text into individual dots and places each one independently. This was Dark's insight in the mid-1990s: if you give up the idea of a solid font and accept a pointillist rendering, you can use the POP trick to place each dot with minimal overhead. The visual result -- text dissolving into a cloud of particles, bouncing on a sine wave -- became one of the signature effects of the Russian demoscene.
+Підхід точкового поля повністю пориває з цією традицією. Замість прокручування суцільного блоку пікселів, він розкладає текст на окремі точки та розміщує кожну незалежно. Це було прозріння Dark'а середини 1990-х: якщо відмовитися від ідеї суцільного шрифту та прийняти пуантилістичний рендеринг, можна використати POP-трюк для розміщення кожної точки з мінімальними накладними витратами. Візуальний результат — текст, що розчиняється в хмарі частинок, підстрибуючи на синусоїді — став одним з фірмових ефектів російської демосцени.
 
-X-Trade's *Illusion* (ENLiGHT'96) was the demo that made the technique famous in the Spectrum world. The dotfield scroller was its centrepiece effect, running smoothly alongside music and other visual elements. Dark published the algorithmic principles in *Spectrum Expert* issues #01 and #02 (1997-98), where he described the general approach to POP-based rendering and sine-table animation. Two decades later, Introspec's detailed reverse-engineering of the Illusion binary (published in *Hype* magazine, 2017) confirmed Dark's claims and provided the exact cycle counts that the community had long speculated about.
+*Illusion* від X-Trade (ENLiGHT'96) було демо, що зробило цю техніку знаменитою у світі Spectrum. Скролер з точкового поля був його центральним ефектом, що працював плавно поруч з музикою та іншими візуальними елементами. Dark опублікував алгоритмічні принципи у *Spectrum Expert* випуски #01 та #02 (1997-98), де описав загальний підхід до POP-базованого рендерингу та анімації з таблицями синусів. Через два десятиліття детальний реверс-інжиніринг бінарника Illusion від Introspec'а (опублікований у журналі *Hype*, 2017) підтвердив твердження Dark'а та надав точні підрахунки тактів, про які спільнота давно здогадувалася.
 
-The 4-phase colour technique has a different pedigree. Colour-cycling on the Spectrum has been explored since the 1980s -- simple two-frame alternation (flash-like effects) was common in games and demos. But the systematic four-phase approach, with its careful inversion step to ensure all four colours contribute equally, was refined by Introspec for *Eager* (3BM Open Air 2015). The party version's file_id.diz explicitly mentions the technique, and Introspec's "Making of Eager" article in *Hype* (2015) describes the design process: choosing colours so that adjacent phases minimise visible flicker, and using dithering patterns that distribute the transitions evenly across the cell.
+4-фазна колірна техніка має іншу родовідну. Циклічна зміна кольорів на Spectrum досліджувалася з 1980-х — просте двокадрове чергування (ефекти типу мерехтіння) було поширене в іграх та демо. Але систематичний чотирифазний підхід, з його ретельним кроком інвертування для забезпечення рівного вкладу всіх чотирьох кольорів, був вдосконалений Introspec'ом для *Eager* (3BM Open Air 2015). Файл file_id.diz паті-версії явно згадує цю техніку, а стаття Introspec'а "Making of Eager" у *Hype* (2015) описує процес дизайну: вибір кольорів так, щоб суміжні фази мінімізували видиме мерехтіння, та використання патернів дизерингу, що рівномірно розподіляють переходи по комірці.
 
-The broader principle -- temporal multiplexing of colour -- appears on other platforms too. The Atari 2600 famously alternates frames to create flickering pseudo-sprites. The Game Boy uses a similar trick for pseudo-transparency. On the Spectrum, the technique is particularly effective because the CRT phosphor persistence smooths the transitions more than an LCD would. This is worth noting for modern viewers: 4-phase colour looks substantially better on a real CRT or a good CRT emulator (with phosphor simulation) than on a raw pixel-perfect display.
+Ширший принцип — часове мультиплексування кольору — з'являється й на інших платформах. Atari 2600 славиться чергуванням кадрів для створення мерехтливих псевдо-спрайтів. Game Boy використовує подібний трюк для псевдо-прозорості. На Spectrum техніка особливо ефективна, бо персистентність люмінофора ЕПТ згладжує переходи краще, ніж це робив би РК-дисплей. Це варто зазначити для сучасних глядачів: 4-фазний колір виглядає суттєво краще на реальному ЕПТ або хорошому емуляторі ЕПТ (з симуляцією люмінофора), ніж на чистому піксельно-точному дисплеї.
 
 ---
 

@@ -62,9 +62,9 @@ xor_sprite_16x16:
     ret                     ; 10 T
 ```
 
-The inner loop costs 134 T-states per row in the common case (no boundary crossing): two IX loads at 19T each, two XOR-and-store sequences at 18T each, two INC IX at 10T, row advance (INC H + check) at 27T, and DJNZ at 13T. At character boundaries, the cost rises to ~164 T-states (the extra adjustment instructions replace the taken JR). For 16 rows: approximately 2,200 T-states per draw. To erase the sprite, call the same routine again with the same screen address --- the XOR undoes itself.
+Внутрішній цикл коштує 134 такти на рядок у звичайному випадку (без перетину меж): два завантаження IX по 19T кожне, дві послідовності XOR-і-запис по 18T кожна, два INC IX по 10T, просування рядка (INC H + перевірка) за 27T та DJNZ за 13T. На межах знакорядів вартість зростає до ~164 тактів (додаткові інструкції корекції замінюють JR, що спрацьовує). Для 16 рядків: приблизно 2 200 тактів на малювання. Для стирання спрайта виклич ту саму процедуру знову з тією самою адресою екрану --- XOR скасовує сам себе.
 
-Total cost to animate one XOR sprite: ~4,400 T-states per frame (draw + erase).
+Загальна вартість анімації одного XOR-спрайта: ~4 400 тактів на кадр (малювання + стирання).
 
 ### Коли XOR працює
 
@@ -161,17 +161,17 @@ masked_sprite_16x16:
 
 ### Підрахунок тактів
 
-Let us count the common case (no character boundary crossing). Note that `JR NZ` is taken (12T) in the common case because the boundary crossing is rare --- only 1 in 8 rows crosses a character boundary.
+Порахуємо звичайний випадок (без перетину меж знакоряду). Зверни увагу, що `JR NZ` спрацьовує (12T) у звичайному випадку, бо перетин межі рідкісний --- лише 1 із 8 рядків перетинає межу знакоряду.
 
-| Section | Instructions | T-states |
+| Секція | Інструкції | Такти |
 |---------|-------------|----------|
-| Left byte: mask+draw | `ld a,(de)` + `and (hl)` + `inc de` + `ld c,a` + `ld a,(de)` + `or c` + `ld (hl),a` + `inc de` + `inc l` | 52 |
-| Right byte: mask+draw | Same sequence + `dec l` | 52 |
-| Row advance | `inc h` + `ld a,h` + `and 7` + `jr nz` (taken) | 27 |
-| Loop | `djnz` | 13 |
-| **Total per row** | | **144** |
+| Лівий байт: маска+малювання | `ld a,(de)` + `and (hl)` + `inc de` + `ld c,a` + `ld a,(de)` + `or c` + `ld (hl),a` + `inc de` + `inc l` | 52 |
+| Правий байт: маска+малювання | Та сама послідовність + `dec l` | 52 |
+| Просування рядка | `inc h` + `ld a,h` + `and 7` + `jr nz` (спрацьовує) | 27 |
+| Цикл | `djnz` | 13 |
+| **Усього на рядок** | | **144** |
 
-For 16 rows: 16 x 144 = **2,304 T-states** (common case). Add boundary-crossing overhead for ~2 boundaries in a 16-pixel sprite: roughly **2,400 T-states** total.
+Для 16 рядків: 16 x 144 = **2 304 такти** (звичайний випадок). Додай накладні витрати перетину меж для ~2 меж у 16-піксельному спрайті: приблизно **2 400 тактів** загалом.
 
 Але це лише малювання спрайта. Тобі також потрібно стерти спрайт попереднього кадру, тобто відновити фон — ми розглянемо це в Методі 6 (Брудні прямокутники). Поки що зазнач, що саме малювання приблизно на 35% дорожче за XOR, але візуальна якість незрівнянно краща.
 
@@ -486,14 +486,14 @@ compiled_sprite_16x16:
 
 Для 16 рядків × 2 байти: 16 × (28 + 28 + 4 + 4 + 4) = 16 × 68 = **1 088 тактів (T-state)**. Це приблизно половина вартості універсальної маскованої процедури, з повною підтримкою прозорості.
 
-| Method | 16x16 draw cost | Masking | Notes |
+| Метод | Вартість малювання 16x16 | Маскування | Примітки |
 |--------|-----------------|---------|-------|
-| XOR sprite | ~2,200 T | No | Draw + erase = ~4,400 T |
-| OR+AND masked | ~2,400 T | Yes | Standard approach |
-| Pre-shifted masked | ~2,400 T | Yes | No shift cost; 4--8x memory |
-| Stack sprite (PUSH) | ~810 T | No | DI required; solid rectangle |
-| Compiled (no mask) | ~570 T | No | Code = sprite; large footprint |
-| Compiled (masked) | ~1,088 T | Yes | Best of both; largest footprint |
+| XOR-спрайт | ~2 200 T | Ні | Малювання + стирання = ~4 400 T |
+| OR+AND маскований | ~2 400 T | Так | Стандартний підхід |
+| Попередньо зсунутий маскований | ~2 400 T | Так | Без вартості зсуву; 4--8× пам'яті |
+| Стековий спрайт (PUSH) | ~810 T | Ні | Потрібен DI; суцільний прямокутник |
+| Скомпільований (без маски) | ~570 T | Ні | Код = спрайт; великий об'єм |
+| Скомпільований (з маскою) | ~1 088 T | Так | Найкращий з обох; найбільший об'єм |
 
 <!-- figure: ch16_sprite_methods -->
 ![Sprite rendering methods comparison](illustrations/output/ch16_sprite_methods.png)
@@ -567,7 +567,7 @@ save_background_16x16:
     ret                     ; 10 T
 ```
 
-The restore routine is identical with source and destination swapped: read from the buffer, write to the screen. Each routine takes approximately **1,500 T-states** for 16 rows.
+Процедура відновлення ідентична з поміняними місцями джерелом і призначенням: читання з буфера, запис на екран. Кожна процедура займає приблизно **1 500 тактів** для 16 рядків.
 
 ### Повний бюджет кадру
 
@@ -580,7 +580,7 @@ The restore routine is identical with source and destination swapped: read from 
 | Draw sprite (masked) | ~2,400 T | 19,200 T |
 | **Total** | **~5,400 T** | **~43,200 T** |
 
-On a Pentagon (71,680 T-states per frame): 43,200 T leaves **28,480 T** for game logic, input processing, music, and everything else. At 25 fps you have twice the budget (two frames per update), giving ~100,000 T-states for non-sprite work. This is comfortable for a game.
+На Pentagon (71 680 тактів на кадр): 43 200 T залишають **28 480 T** для ігрової логіки, обробки вводу, музики та всього іншого. При 25 fps маєш подвійний бюджет (два кадри на оновлення), що дає ~100 000 тактів для неспрайтової роботи. Це комфортно для гри.
 
 Якщо використовуєш скомпільовані масковані спрайти:
 
@@ -591,7 +591,7 @@ On a Pentagon (71,680 T-states per frame): 43,200 T leaves **28,480 T** for game
 | Draw sprite (compiled, masked) | ~1,088 T | 8,704 T |
 | **Total** | **~4,088 T** | **~32,704 T** |
 
-That saves over 10,000 T-states per frame --- a meaningful improvement that buys you more room for game logic or more sprites.
+Це заощаджує понад 10 000 тактів на кадр --- значне покращення, що дає більше простору для ігрової логіки або більше спрайтів.
 
 ### Порядок малювання та перекриття
 
@@ -645,7 +645,7 @@ save_bg_ldi:
     ret                     ; 10 T
 ```
 
-Common-case row cost: 16 + 16 + 4 + 4 + 4 + 4 + 7 + 12 + 13 = **80 T-states** (JR NZ is taken at 12T in the common case --- no boundary crossing). For 16 rows: approximately **1,280 T-states** --- a worthwhile improvement over the 1,500 T-states of the manual approach.
+Вартість рядка у звичайному випадку: 16 + 16 + 4 + 4 + 4 + 4 + 7 + 12 + 13 = **80 тактів** (JR NZ спрацьовує за 12T у звичайному випадку --- без перетину меж). Для 16 рядків: приблизно **1 280 тактів** --- вартісне покращення порівняно з 1 500 тактами ручного підходу.
 
 **Поєднай збереження і малювання.** Замість збереження-потім-малювання як двох окремих проходів по екранній області, поєднай їх в один прохід: для кожного байта прочитай екран (зберігаючи його), потім запиши дані спрайта. Це вдвічі скорочує кількість операцій переходу між рядками та усуває один повний прохід DOWN_HL:
 
@@ -710,7 +710,7 @@ save_and_draw_16x16:
     ret                     ; 10 T
 ```
 
-This combines save and draw into a single pass. The cost per row (common case): roughly **205 T-states** (JR NZ taken at 12T). For 16 rows: approximately **3,400 T-states** --- compared to separate save (~1,280 T) + draw (~2,400 T) = 3,680 T-states. The saving is modest (~280 T per sprite), but it adds up across 8 sprites.
+Це поєднує збереження і малювання в один прохід. Вартість рядка (звичайний випадок): приблизно **205 тактів** (JR NZ спрацьовує за 12T). Для 16 рядків: приблизно **3 400 тактів** --- порівняно з окремими збереженням (~1 280 T) + малюванням (~2 400 T) = 3 680 тактів. Економія помірна (~280 T на спрайт), але вона нагромаджується при 8 спрайтах.
 
 Для максимальної продуктивності розгорни всю процедуру: без циклу DJNZ, явний код для кожного рядка з перетинами меж, вбудованими в рядках 7 та 15. Це усуває накладні витрати на цикл та перевірку меж, зменшуючи загальну вартість до приблизно **2 780 тактів (T-state)** ціною ~300 байтів коду на процедуру спрайта.
 
@@ -849,7 +849,7 @@ main_loop:
 | **Total sprite work** | **~41,040 T** |
 | **Available for game logic** | **~102,000 T** |
 
-With a 2-frame budget of 143,360 T-states (2 x 71,680 on Pentagon), we have roughly 102,000 T-states for game logic, input, and sound. This is generous --- enough for entity AI (Chapter 19), tile collision detection, music playback, and input processing.
+З 2-кадровим бюджетом у 143 360 тактів (2 x 71 680 на Pentagon), маємо приблизно 102 000 тактів для ігрової логіки, вводу та звуку. Це щедро --- достатньо для ШІ сутностей (Розділ 19), виявлення тайлових зіткнень, відтворення музики та обробки вводу.
 
 Перед малюванням кожного спрайта обчисли адресу екрану з (x, y) за допомогою процедури з Розділу 2 і обери правильні попередньо зсунуті дані на основі `x AND $06` (для 4 рівнів зсуву). Логіка вибору попереднього зсуву з Методу 3 застосовується безпосередньо.
 
@@ -857,15 +857,15 @@ With a 2-frame budget of 143,360 T-states (2 x 71,680 on Pentagon), we have roug
 
 На Agon головний цикл стає тривіально простим: чекай на VSync, онови позиції, надішли команди переміщення `VDU 23,27,4` для кожного спрайта і переходь до ігрової логіки. Без збереження/відновлення, без маскування, без обчислення адрес екрану, без навігації по черезрядкових рядках. VDP обробляє все.
 
-The contrast is instructive. On the Spectrum, sprite rendering is the dominant cost --- over 40,000 T-states per frame, where every cycle saved in the inner loop translates directly to more sprites or more game logic. On the Agon, sprite rendering is effectively free from the CPU's perspective, and your engineering effort goes into game design rather than pixel-pushing. Both approaches have their satisfactions.
+Контраст повчальний. На Spectrum відмальовка спрайтів --- домінуюча вартість: понад 40 000 тактів на кадр, де кожен зекономлений такт у внутрішньому циклі безпосередньо перетворюється на більше спрайтів або більше ігрової логіки. На Agon відмальовка спрайтів фактично безкоштовна з точки зору CPU, і твої інженерні зусилля йдуть на ігровий дизайн, а не на розміщення пікселів. Обидва підходи мають свої задоволення.
 
 ---
 
 ## Підсумок
 
-- **XOR sprites** are the simplest method: XOR to draw, XOR again to erase. ~2,200 T-states to draw a 16x16 sprite. No mask, no background save needed. Visual quality is poor (inverted pixels over background detail). Good for cursors, bullets, and debug markers.
+- **XOR-спрайти** --- найпростіший метод: XOR для малювання, XOR знову для стирання. ~2 200 тактів для малювання спрайта 16x16. Без маски, без збереження фону. Візуальна якість погана (інвертовані пікселі поверх деталей фону). Підходить для курсорів, куль та відлагоджувальних маркерів.
 
-- **OR+AND masked sprites** are the industry standard. Each byte goes through an AND-with-mask, OR-with-graphic sequence that produces clean transparency. ~2,400 T-states for a 16x16 sprite. This is what most commercial Spectrum games use.
+- **OR+AND масковані спрайти** --- індустріальний стандарт. Кожен байт проходить через послідовність AND-з-маскою, OR-з-графікою, що створює чисту прозорість. ~2 400 тактів для спрайта 16x16. Саме це використовує більшість комерційних ігор Spectrum.
 
 - **Попередньо зсунуті спрайти** усувають вартість попіксельного зсуву, зберігаючи 4 або 8 попередньо обчислених зсунутих копій даних спрайта. Час малювання такий самий, як у маскованої процедури. Вартість пам'яті масштабується від 4× (4 зсуви, 2-піксельна роздільність) до 8× (8 зсувів, повна піксельна роздільність). Стандартний компроміс між пам'яттю та швидкістю.
 
@@ -873,9 +873,9 @@ The contrast is instructive. On the Spectrum, sprite rendering is the dominant c
 
 - **Скомпільовані спрайти** перетворюють спрайт на виконуваний код. Кожен піксельний байт стає інструкцією `LD (HL),n`. ~570 тактів (T-state) без маскування, ~1 088 тактів (T-state) зі скомпільованим маскуванням. Найшвидший маскований метод ціною великого обсягу коду. Анімація потребує окремих скомпільованих процедур на кадр.
 
-- **Dirty rectangles** with background save/restore are the standard technique for sprite animation. Save the background before drawing, restore it before drawing the next frame. Restore in reverse draw order to handle overlapping sprites correctly. The combined save-and-draw approach reduces per-sprite cost to ~3,400 T-states.
+- **Брудні прямокутники** зі збереженням/відновленням фону --- стандартна техніка для анімації спрайтів. Зберігай фон перед малюванням, відновлюй його перед малюванням наступного кадру. Відновлюй у зворотному порядку малювання для правильної обробки перекриття спрайтів. Комбінований підхід збереження-та-малювання знижує вартість на спрайт до ~3 400 тактів.
 
-- **8 sprites at 25 fps** on a Spectrum 128K costs approximately 41,000 T-states per update cycle (every 2 frames), leaving ~102,000 T-states for game logic --- a comfortable budget for a real game.
+- **8 спрайтів при 25 fps** на Spectrum 128K коштують приблизно 41 000 тактів за цикл оновлення (кожні 2 кадри), залишаючи ~102 000 тактів для ігрової логіки --- комфортний бюджет для справжньої гри.
 
 - **Апаратні спрайти Agon Light 2** усувають всю проблему відмальовки. Визнач спрайти один раз, переміщуй їх VDU-командами. Вартість для CPU мінімальна. Компроміс — абстракція: ти здобуваєш продуктивність, але втрачаєш можливість робити попіксельні трюки з даними спрайтів.
 

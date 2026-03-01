@@ -133,7 +133,7 @@ Lo-Fi Motion було побудоване приблизно за два тиж
 
 ## 20.3 Making-of культура
 
-The ZX Spectrum demoscene has a strong culture of documenting how demos are made. This is not universal in the broader demoscene -- on many platforms, demos ship with no documentation beyond credits. On the Spectrum scene, detailed making-of articles are a tradition, and Hype (hype.retroscene.org) is the primary venue for publishing them.
+Демосцена ZX Spectrum має сильну культуру документування того, як створюються демо. Це не універсально для ширшої демосцени -- на багатьох платформах демо випускаються без жодної документації, окрім кредитів. На Spectrum-сцені детальні making-of статті -- це традиція, і Hype (hype.retroscene.org) -- основне місце для їх публікації.
 
 ### Eager: технічне NFO
 
@@ -206,11 +206,11 @@ tools/
 
 CI через GitHub Actions стає все поширенішим. Воркфлоу, що збирає при кожному пуші, ловить неявні залежності — демо збирається на твоїй машині, але падає на чистому середовищі через незадекларовану версію інструменту. Вихідний код Lo-Fi Motion є на GitHub, опублікований як еталонна реалізація: клонуй, запусти `make`, отримай робочий бінарник. Ця відкритість незвичайна для демосцени і цінна для навчання.
 
-### Synchronisation and Compositing
+### Синхронізація та композитинг
 
-The hardest part of a demo is not the effects --- it is the *timing*. When to start the plasma. When to cut to the scroller. Which beat triggers the colour flash. This is synchronisation, and the ZX Spectrum scene has evolved a layered approach that combines demoscene-specific tools with general-purpose video editing.
+Найважча частина демо -- не ефекти, а *тайминг*. Коли запустити плазму. Коли перейти до скролера. Який біт запускає спалах кольору. Це синхронізація, і ZX Spectrum-сцена виробила багаторівневий підхід, що поєднує демосценові інструменти з універсальним відеоредагуванням.
 
-**The sync table.** At the Z80 level, synchronisation is a data table:
+**Таблиця синхронізації.** На рівні Z80 синхронізація -- це таблиця даних:
 
 ```z80
 sync_table:
@@ -221,23 +221,23 @@ sync_table:
     dw 0                        ; end marker
 ```
 
-The engine increments a frame counter each VBlank, compares it against the next entry in the table, and dispatches when the frame arrives. This is the simplest possible sync mechanism. It is also what every ZX Spectrum demo ultimately runs --- regardless of how those frame numbers were determined.
+Рушій інкрементує лічильник кадрів кожен VBlank, порівнює його з наступним записом таблиці та викликає обробник, коли настає потрібний кадр. Це найпростіший можливий механізм синхронізації. І саме це кожне ZX Spectrum демо зрештою виконує --- незалежно від того, як ці номери кадрів були визначені.
 
-The question is: how do you *find* the right frame numbers? Five approaches exist, from the simplest to the most sophisticated. (Appendix J covers each tool's full workflow, export pipelines, and step-by-step recipes.)
+Питання в тому: як ти *знаходиш* правильні номери кадрів? Існує п'ять підходів, від найпростішого до найскладнішого. (Додаток J покриває повний робочий процес кожного інструменту, конвеєри експорту та покрокові рецепти.)
 
-**Approach 1: Vortex Tracker + manual timing.** Open your .pt3 in Vortex Tracker II. The bottom-right corner shows the current position (pattern, row, frame). Play the tune, note the frame numbers where beats, accents, and phrase transitions occur. Write them into your sync table. Rebuild, test, adjust. This is the approach most ZX demosceners use, including Kolnogorov (Vein): "Vortex + video editor. In Vortex the frame is shown in the bottom-right corner --- I looked at which frames to hook onto, created a table with `dw frame, action` entries, and synced from that."
+**Підхід 1: Vortex Tracker + ручний тайминг.** Відкрий свій .pt3 у Vortex Tracker II. У правому нижньому куті показано поточну позицію (патерн, рядок, кадр). Програй мелодію, запиши номери кадрів, де трапляються біти, акценти та переходи фраз. Внеси їх у таблицю синхронізації. Перезбери, протестуй, підлаштуй. Це підхід, який використовує більшість ZX-демосценерів, включаючи Kolnogorov (Vein): "Vortex + video editor. In Vortex the frame is shown in the bottom-right corner --- I looked at which frames to hook onto, created a table with `dw frame, action` entries, and synced from that."
 
-The advantage: you hear the music and see the numbers simultaneously. The disadvantage: iterating is slow --- every change requires rebuilding the demo and watching it from the beginning.
+Перевага: ти чуєш музику і бачиш числа одночасно. Недолік: ітерація повільна --- кожна зміна потребує перезбірки демо та перегляду з початку.
 
-**Approach 2: Video editor as sync planner.** diver4d's GABBA workflow recognised that frame-level synchronisation is a video editing problem. Capture each effect as a video clip, import the clips and music into a video editor (DaVinci Resolve, Blender VSE), scrub to find the perfect cut points, and read off the frame numbers. Kolnogorov: "I exported effect clips to video, assembled them in a video editor, attached the music track, and looked at what order the effects work best in, noting the frames where events should happen." The important word is *looked* --- this is a visual, intuitive process. (Appendix J.2--J.3 covers Blender VSE, DaVinci Resolve, and the GABBA workflow in detail.)
+**Підхід 2: Відеоредактор як планувальник синхронізації.** Робочий процес GABBA від diver4d визнав, що покадрова синхронізація --- це задача відеомонтажу. Захопи кожен ефект як відеокліп, імпортуй кліпи та музику у відеоредактор (DaVinci Resolve, Blender VSE), знайди ідеальні точки монтажу та зчитай номери кадрів. Kolnogorov: "I exported effect clips to video, assembled them in a video editor, attached the music track, and looked at what order the effects work best in, noting the frames where events should happen." Важливе слово --- *подивився*: це візуальний, інтуїтивний процес. (Додаток J.2--J.3 покриває Blender VSE, DaVinci Resolve та робочий процес GABBA детально.)
 
-**Approach 3: GNU Rocket.** The standard sync tool across the PC and Amiga demoscenes --- a tracker-like editor where columns are named parameters and rows are time steps. You set keyframes with interpolation (step, linear, smooth, ramp) and edit live while the demo runs via TCP. A Z80 client is impractical, but the workflow transfers: design sync curves in Rocket, export keyframes, convert to Z80 `dw`/`db` tables with a Python script. (Appendix J.2 describes the full Rocket → Z80 pipeline; Appendix J.7 provides a step-by-step recipe.)
+**Підхід 3: GNU Rocket.** Стандартний інструмент синхронізації на PC та Amiga демосценах --- редактор у стилі трекера, де стовпці --- іменовані параметри, а рядки --- кроки часу. Ти встановлюєш ключові кадри з інтерполяцією (крок, лінійна, плавна, рампа) і редагуєш наживо, поки демо працює через TCP. Z80-клієнт непрактичний, але робочий процес переносний: розроби криві синхронізації в Rocket, експортуй ключові кадри, конвертуй у Z80-таблиці `dw`/`db` скриптом на Python. (Додаток J.2 описує повний конвеєр Rocket → Z80; Додаток J.7 надає покроковий рецепт.)
 
-**Approach 4: Blender for pre-visualisation.** For complex demos, storyboard effects as colour-coded strips on the VSE timeline with the music track, animate placeholder parameters in the Graph Editor, then export frame numbers and keyframe values via Blender's Python API directly as Z80-ready data. (Appendix J.2--J.3 covers both the VSE and Graph Editor workflows.)
+**Підхід 4: Blender для превізуалізації.** Для складних демо розмісти ефекти як кольорово-кодовані стрічки на таймлайні VSE з музичним треком, анімуй параметри-заглушки в Graph Editor, потім експортуй номери кадрів та значення ключових кадрів через Python API Blender'а безпосередньо як дані, готові для Z80. (Додаток J.2--J.3 покриває обидва робочі процеси --- VSE та Graph Editor.)
 
-**Approach 5: Game engines as data generators.** Unity and Unreal are overkill as *demo engines* but perfect as *data generators*: VR motion capture (draw trajectories with a controller), GPU particle simulation (export positions per frame), and shader prototyping (iterate an algorithm at full speed, then translate to Z80). Blender covers most of this for non-VR work. The export pipeline is always the same: float → 8-bit fixed-point → delta-encode → transpose → compress → INCBIN. (Appendix J.4 covers the full pipeline with comparison tables and a step-by-step VR capture recipe.)
+**Підхід 5: Ігрові рушії як генератори даних.** Unity та Unreal надлишкові як *рушії демо*, але ідеальні як *генератори даних*: VR motion capture (малюй траєкторії контролером), GPU-симуляція частинок (експортуй позиції покадрово), прототипування шейдерів (ітеруй алгоритм на повній швидкості, потім перекладай на Z80). Blender покриває більшу частину цього для не-VR роботи. Конвеєр експорту завжди однаковий: float → 8-бітна фіксована точка → дельта-кодування → транспозиція → стиснення → INCBIN. (Додаток J.4 покриває повний конвеєр з порівняльними таблицями та покроковим рецептом VR-захоплення.)
 
-> The PC demoscene has a parallel ecosystem of demo-making tools built on the same philosophy of procedural generation and extreme compression: Farbrausch's Werkkzeug/kkrunchy (open-sourced 2012), TiXL (node-based motion graphics, MIT), Bonzomatic (live shader coding), and music synths like Sointu and WaveSabre. None target Z80 directly, but the thinking is identical --- the ZX Spectrum equivalent of Werkkzeug's node graph is your Python build script that generates lookup tables and emits INCBIN directives. Appendix J.5 covers the history and Appendix J.6 surveys the music tools, including Furnace --- a modern tracker with direct AY-3-8910 support.
+> PC-демосцена має паралельну екосистему інструментів для створення демо, побудовану на тій самій філософії процедурної генерації та екстремального стиснення: Werkkzeug/kkrunchy від Farbrausch (відкритий вихідний код з 2012), TiXL (вузлова моушн-графіка, MIT), Bonzomatic (живе шейдерне кодування) та музичні синтезатори як Sointu і WaveSabre. Жоден з них не націлений на Z80 безпосередньо, але мислення ідентичне --- ZX Spectrum-еквівалент вузлового графа Werkkzeug --- це твій Python-скрипт збірки, що генерує таблиці підстановки та видає директиви INCBIN. Додаток J.5 покриває історію, а Додаток J.6 оглядає музичні інструменти, включаючи Furnace --- сучасний трекер з прямою підтримкою AY-3-8910.
 
 <!-- figure: ch20_vortex_tracker_frame_counter -->
 
@@ -259,13 +259,13 @@ The advantage: you hear the music and see the numbers simultaneously. The disadv
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-> *See Appendix J for pseudo-screenshots of GNU Rocket, Blender VSE, Blender Graph Editor, and TiXL, plus detailed tool descriptions and five step-by-step export recipes.*
+> *Див. Додаток J для псевдо-скріншотів GNU Rocket, Blender VSE, Blender Graph Editor та TiXL, а також детальних описів інструментів і п'яти покрокових рецептів експорту.*
 
-**The human touch.** Kolnogorov articulates a principle that all experienced demosceners understand but rarely state explicitly: "Even if we know the snare hits every 16 notes, and we flash the border every 16 notes --- it will look dead and robotic. The essence of sync is that it should be deliberately uneven and broken in places."
+**Людський дотик.** Kolnogorov формулює принцип, який усі досвідчені демосценери розуміють, але рідко озвучують явно: "Even if we know the snare hits every 16 notes, and we flash the border every 16 notes --- it will look dead and robotic. The essence of sync is that it should be deliberately uneven and broken in places."
 
-Algorithmic sync --- trigger on every beat, fade on every phrase boundary --- feels mechanical. The best demo sync follows musical *phrases*, not individual beats. Some events fire slightly before the beat (building tension). Some fire after (surprise). Some phrases have no visual change at all (creating anticipation for the next hit). This is why manual sync tables, tediously assembled by a human watching and listening, consistently produce better results than any automated system.
+Алгоритмічна синхронізація --- тригер на кожному біті, фейд на кожній межі фрази --- відчувається механічно. Найкраща демо-синхронізація слідує музичним *фразам*, а не окремим бітам. Деякі події спрацьовують трохи до біта (нагнітаючи напругу). Деякі після (сюрприз). У деяких фразах взагалі немає візуальної зміни (створюючи очікування наступного удару). Ось чому ручні таблиці синхронізації, кропітко складені людиною, що дивиться і слухає, стабільно дають кращі результати, ніж будь-яка автоматизована система.
 
-The practical consequence: even if you use Rocket or Blender to plan your sync, the final pass is always manual. Watch the demo with the music. Adjust frame numbers by ear. Add the off-beat hits and the deliberate silences that make the sync feel alive.
+Практичний наслідок: навіть якщо ти використовуєш Rocket або Blender для планування синхронізації, фінальний прохід завжди ручний. Дивись демо з музикою. Підлаштовуй номери кадрів на слух. Додавай позабітні влучання та навмисні паузи, що роблять синхронізацію живою.
 
 ---
 
@@ -277,7 +277,7 @@ The practical consequence: even if you use Rocket or Blender to plan your sync, 
 
 ZX Spectrum демосцену обслуговує кілька регулярних паті, кожне зі своїм характером.
 
-**Chaos Constructions (CC)** is the largest and most prestigious ZX demo event, held in Saint Petersburg, Russia. The ZX demo compo at CC draws the strongest entries: Break Space (2016), Eager's successors, and productions from groups like Thesuper, 4D+TBK, and Placeholders. CC is where you go to compete at the highest level. The audience is large, knowledgeable, and unforgiving.
+**Chaos Constructions (CC)** -- найбільша та найпрестижніша ZX-демо подія, що проводиться в Санкт-Петербурзі, Росія. ZX-демо компо на CC збирає найсильніші роботи: Break Space (2016), наступники Eager та продукції від груп на кшталт Thesuper, 4D+TBK і Placeholders. CC -- це місце, куди ти йдеш, щоб змагатися на найвищому рівні. Аудиторія велика, обізнана та нещадна.
 
 **DiHalt** проводиться в Нижньому Новгороді, Росія, і має як літню подію, так і зимову «Lite» версію. DiHalt має тенденцію бути більш експериментальним, ніж CC — аудиторія привітна до тих, хто входить вперше, і атмосфера заохочує ризик. Lo-Fi Motion було випущено на DiHalt 2020. Якщо ти входиш на своє перше компо, DiHalt Lite — хороший вибір.
 
@@ -413,7 +413,7 @@ graph TD
     style FINAL fill:#dff,stroke:#399
 ```
 
-> **The iterative loop:** The path from implementation to timing check and back is where most development time is spent. The prototype stage (HTML/JS or quick Z80 sketch) validates the visual concept before committing to full implementation. The scene table makes reordering effects trivial during the polish phase.
+> **Ітеративний цикл:** Шлях від реалізації до перевірки тайминга і назад --- це де витрачається найбільше часу розробки. Етап прототипу (HTML/JS або швидкий Z80-ескіз) валідує візуальну концепцію перед повною реалізацією. Таблиця сцен робить зміну порядку ефектів тривіальною на етапі полірування.
 
 ![Demo framework with effect slots driven by a scene table, showing the engine cycling through multiple visual effects](../../build/screenshots/ch20_demo_framework.png)
 
@@ -449,7 +449,7 @@ graph TD
 
 12. **Подай.** Обери паті. Дотримуйся правил. Завантаж файл. Потім дивись компо і насолоджуйся тим, що бачиш свою роботу на екрані.
 
-Your first entry is unlikely to place. Treat it as a learning exercise: the feedback from seeing your work on the big screen and comparing it to other entries is more valuable than any prize. Each subsequent demo will be better because you will know what to fix.
+Твоя перша робота навряд чи займе призове місце. Сприймай її як досвід навчання: зворотний зв'язок від бачення своєї роботи на великому екрані та порівняння з іншими роботами вартує більше за будь-який приз. Кожне наступне демо буде кращим, бо ти знатимеш, що виправляти.
 
 ---
 
@@ -465,7 +465,7 @@ Your first entry is unlikely to place. Treat it as a learning exercise: the feed
 
 - **Стандартний набір інструментів** зходиться на sjasmplus (асемблер), Unreal Speccy або Fuse (емулятор), BGE або Multipaint (графіка), Ruby або Python скрипти (перетворення та генерація коду), ZX0 або hrust1opt (стиснення) та Makefile (автоматизація збірки). CI через GitHub Actions стає все поширенішим.
 
-- **Synchronisation** is the hardest part of a demo. The layered approach: determine frame numbers in Vortex Tracker or a video editor (DaVinci Resolve, Blender VSE), optionally plan interpolated parameter curves in GNU Rocket, export to Z80 `dw frame, action` tables. The final pass is always manual --- algorithmic sync feels robotic; human-placed sync follows phrases, not beats. (Appendix J covers all sync tools, data generation pipelines, and step-by-step export recipes.)
+- **Синхронізація** --- найважча частина демо. Багаторівневий підхід: визнач номери кадрів у Vortex Tracker або відеоредакторі (DaVinci Resolve, Blender VSE), за бажанням сплануй інтерпольовані криві параметрів у GNU Rocket, експортуй у Z80-таблиці `dw frame, action`. Фінальний прохід завжди ручний --- алгоритмічна синхронізація відчувається роботизованою; людська синхронізація слідує фразам, а не бітам. (Додаток J покриває всі інструменти синхронізації, конвеєри генерації даних та покрокові рецепти експорту.)
 
 - **Культура компо** зосереджена на подіях як Chaos Constructions, DiHalt, Multimatograf, CAFe та Revision. Вхід на перше компо вимагає вибору відповідної події, дотримання правил, ретельного тестування та ранньої подачі.
 
