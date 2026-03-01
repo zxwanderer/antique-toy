@@ -284,7 +284,7 @@ diver4d bypassed the code-edit-compile-test cycle entirely. He used **Luma Fusio
 
 The workflow:
 
-1. **n1k-o composed the gabber track** with frame-level structural markers. The musician and coder worked from the same document: a timeline where every beat, every fill, every breakdown was marked with a frame number. This was not a rough tempo guide -- it was a frame-accurate map of the entire track.
+1. **n1k-o composed the gabber track**, then exported it from Vortex Tracker into Excel. In the spreadsheet, he built a colour-coded visual map of the entire track: every row is one frame (= one pattern row), with columns for each musical layer --- kick drums in blue, snare in red, melody in green, acid in purple, and so on. Extra columns held frame numbers and any sync data the coders needed. He also highlighted subtle effects that non-musicians might not hear. The result was a frame-accurate, human-readable map of the entire composition. The reason for this effort was practical: the coders heard gabber as a wall of sound and could not identify individual beats or transitions by ear. The spreadsheet made the musical structure visible. This workflow proved so effective that the team adopted it for all subsequent demos.
 
 2. **diver4d recorded each visual effect** running at 50 fps in an emulator and exported the recordings as video clips.
 

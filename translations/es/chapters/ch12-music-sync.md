@@ -270,7 +270,7 @@ diver4d evitó el ciclo de código-edición-compilación-prueba por completo. Us
 
 El flujo de trabajo:
 
-1. **n1k-o compuso la pista de gabber** con marcadores estructurales a nivel de fotograma. El músico y el programador trabajaron desde el mismo documento: una línea de tiempo donde cada pulso, cada relleno, cada desglose estaba marcado con un número de fotograma. No era una guía aproximada de tempo -- era un mapa con precisión de fotograma de toda la pista.
+1. **n1k-o compuso la pista de gabber**, luego la exportó de Vortex Tracker a Excel. En la hoja de cálculo, construyó un mapa visual codificado por colores de todo el tema: cada fila es un fotograma (= una fila de patrón), con columnas para cada capa musical --- bombos en azul, caja en rojo, melodía en verde, acid en morado, y así sucesivamente. Columnas adicionales contenían los números de fotograma y los datos de sincronización que los programadores necesitaban. También destacó efectos sutiles que los no músicos podrían no escuchar. El resultado fue un mapa legible y con precisión de fotograma de toda la composición. La razón de este esfuerzo fue práctica: los programadores escuchaban el gabber como un muro de sonido y no podían identificar pulsos o transiciones individuales de oído. La hoja de cálculo hizo visible la estructura musical. Este flujo de trabajo resultó tan efectivo que el equipo lo adoptó para todas las demos posteriores.
 
 2. **diver4d grabó cada efecto visual** ejecutándose a 50 fps en un emulador y exportó las grabaciones como clips de vídeo.
 
